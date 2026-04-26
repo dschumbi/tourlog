@@ -25,6 +25,7 @@ interface Tour {
   hotelPickup: boolean;
   fiveStarReviews: number;
   cancellationWithin48h: boolean;
+  cashCount: number | null;
   notes: string | null;
 }
 
@@ -130,6 +131,11 @@ export default function TourenPage() {
                           {tour.fiveStarReviews} ★
                         </span>
                       )}
+                      {tour.cashCount != null && tour.cashCount > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                          {tour.cashCount} bar
+                        </span>
+                      )}
                     </div>
                     {tour.notes && (
                       <p className="text-xs text-gray-400 mt-1 truncate">{tour.notes}</p>
@@ -190,6 +196,15 @@ export default function TourenPage() {
                   onChange={(e) => setEditTour({
                     ...editTour,
                     paxCount: e.target.value ? Number(e.target.value) : null,
+                  })} />
+              </div>
+              <div className="space-y-1">
+                <Label>Bargeld (Anzahl Gäste)</Label>
+                <Input type="number" min={0}
+                  value={editTour.cashCount ?? ""}
+                  onChange={(e) => setEditTour({
+                    ...editTour,
+                    cashCount: e.target.value ? Number(e.target.value) : null,
                   })} />
               </div>
               <div className="space-y-1">

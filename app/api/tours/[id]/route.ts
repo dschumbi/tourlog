@@ -27,6 +27,7 @@ export async function PUT(
       hotelPickup: body.hotelPickup ?? false,
       fiveStarReviews: body.fiveStarReviews ?? 0,
       cancellationWithin48h: body.cancellationWithin48h ?? false,
+      cashCount: body.cashCount ?? null,
       notes: body.notes ?? null,
     },
   });

@@ -16,6 +16,7 @@ model Tour {
   hotelPickup           Boolean  @default(false)
   fiveStarReviews       Int      @default(0)
   cancellationWithin48h Boolean  @default(false)
+  cashCount             Int?
   notes                 String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt

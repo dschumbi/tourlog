@@ -25,6 +25,7 @@ export default function ErfassenPage() {
   const [hotelPickup, setHotelPickup] = useState(false);
   const [fiveStarReviews, setFiveStarReviews] = useState(0);
   const [cancellationWithin48h, setCancellationWithin48h] = useState(false);
+  const [cashCount, setCashCount] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -55,6 +56,7 @@ export default function ErfassenPage() {
           date, tourType, tourKind,
           paxCount: paxCount ? Number(paxCount) : null,
           hotelPickup, fiveStarReviews, cancellationWithin48h,
+          cashCount: cashCount ? Number(cashCount) : null,
           notes: notes || null,
         }),
       });
@@ -62,7 +64,7 @@ export default function ErfassenPage() {
       toast.success("Tour gespeichert!");
       setTourType(""); setTourKind("public"); setPaxCount("");
       setHotelPickup(false); setFiveStarReviews(0);
-      setCancellationWithin48h(false); setNotes(""); setDate(today());
+      setCancellationWithin48h(false); setCashCount(""); setNotes(""); setDate(today());
     } catch {
       toast.error("Fehler beim Speichern");
     } finally {
@@ -115,6 +117,14 @@ export default function ErfassenPage() {
               <Label htmlFor="pax">Teilnehmer (pax)</Label>
               <Input id="pax" type="number" min={1} value={paxCount}
                 onChange={(e) => setPaxCount(e.target.value)} placeholder="z.B. 15" />
+            </div>
+          )}
+
+          {!isCancelled && (
+            <div className="space-y-1">
+              <Label htmlFor="cash">Bargeld (Anzahl Gäste)</Label>
+              <Input id="cash" type="number" min={0} value={cashCount}
+                onChange={(e) => setCashCount(e.target.value)} placeholder="0" />
             </div>
           )}
 

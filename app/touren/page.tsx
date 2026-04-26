@@ -28,7 +28,7 @@ interface Tour {
   cashCount: number | null;
   mvvSingleTickets: number;
   mvvGroupTickets: number;
-  mvvReceiptUrl: string | null;
+  mvvReceiptUrls: string[];
   feeOverride: number | null;
   notes: string | null;
 }
@@ -150,12 +150,12 @@ export default function TourenPage() {
                           {tour.mvvGroupTickets}× Gruppe
                         </span>
                       )}
-                      {tour.mvvReceiptUrl && (
-                        <a href={tour.mvvReceiptUrl} target="_blank" rel="noopener noreferrer"
+                      {tour.mvvReceiptUrls?.map((url, i) => (
+                        <a key={url} href={url} target="_blank" rel="noopener noreferrer"
                           className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 underline">
-                          Beleg
+                          Beleg {tour.mvvReceiptUrls.length > 1 ? i + 1 : ""}
                         </a>
-                      )}
+                      ))}
                     </div>
                     {tour.notes && (
                       <p className="text-xs text-gray-400 mt-1 truncate">{tour.notes}</p>

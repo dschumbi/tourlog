@@ -30,7 +30,7 @@ export async function PUT(
       cashCount: body.cashCount ?? null,
       mvvSingleTickets: body.mvvSingleTickets ?? 0,
       mvvGroupTickets: body.mvvGroupTickets ?? 0,
-      mvvReceiptUrl: body.mvvReceiptUrl ?? null,
+      mvvReceiptUrls: body.mvvReceiptUrls ?? [],
       feeOverride: body.feeOverride ?? null,
       notes: body.notes ?? null,
     },

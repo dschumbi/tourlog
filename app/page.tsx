@@ -28,7 +28,7 @@ export default function ErfassenPage() {
   const [cashCount, setCashCount] = useState("");
   const [mvvSingle, setMvvSingle] = useState("");
   const [mvvGroup, setMvvGroup] = useState("");
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   const [feeOverride, setFeeOverride] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -53,13 +53,18 @@ export default function ErfassenPage() {
     if (!tourType) { toast.error("Bitte Tour-Typ auswählen"); return; }
     setSaving(true);
     try {
-      let mvvReceiptUrl: string | null = null;
-      if (receiptFile) {
-        const fd = new FormData();
-        fd.append("file", receiptFile);
-        const up = await fetch("/api/upload", { method: "POST", body: fd });
-        if (!up.ok) throw new Error("Upload fehlgeschlagen");
-        mvvReceiptUrl = (await up.json()).url;
+      let mvvReceiptUrls: string[] = [];
+      if (receiptFiles.length > 0) {
+        const uploads = await Promise.all(
+          receiptFiles.map(async (file) => {
+            const fd = new FormData();
+            fd.append("file", file);
+            const up = await fetch("/api/upload", { method: "POST", body: fd });
+            if (!up.ok) throw new Error("upload");
+            return (await up.json()).url as string;
+          })
+        );
+        mvvReceiptUrls = uploads;
       }
       const res = await fetch("/api/tours", {
         method: "POST",
@@ -71,20 +76,21 @@ export default function ErfassenPage() {
           cashCount: cashCount ? Number(cashCount) : null,
           mvvSingleTickets: mvvSingle ? Number(mvvSingle) : 0,
           mvvGroupTickets: mvvGroup ? Number(mvvGroup) : 0,
-          mvvReceiptUrl,
+          mvvReceiptUrls,
           feeOverride: feeOverride ? Number(feeOverride) : null,
           notes: notes || null,
         }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error("save");
       toast.success("Tour gespeichert!");
       setTourType(""); setTourKind("public"); setPaxCount("");
       setHotelPickup(false); setFiveStarReviews(0);
       setCancellationWithin48h(false); setCashCount("");
-      setMvvSingle(""); setMvvGroup(""); setReceiptFile(null);
+      setMvvSingle(""); setMvvGroup(""); setReceiptFiles([]);
       setFeeOverride(""); setNotes(""); setDate(today());
-    } catch {
-      toast.error("Fehler beim Speichern");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      toast.error(msg === "upload" ? "Beleg-Upload fehlgeschlagen – Vercel Blob eingerichtet?" : "Fehler beim Speichern");
     } finally {
       setSaving(false);
     }
@@ -198,9 +204,12 @@ export default function ErfassenPage() {
               </div>
               {(mvvSingle || mvvGroup) && (
                 <div className="space-y-1">
-                  <Label htmlFor="receipt">Beleg hochladen</Label>
-                  <Input id="receipt" type="file" accept="image/*,application/pdf"
-                    onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)} />
+                  <Label htmlFor="receipt">Belege hochladen</Label>
+                  <Input id="receipt" type="file" accept="image/*,application/pdf" multiple
+                    onChange={(e) => setReceiptFiles(Array.from(e.target.files ?? []))} />
+                  {receiptFiles.length > 0 && (
+                    <p className="text-xs text-gray-500">{receiptFiles.length} Datei(en) ausgewählt</p>
+                  )}
                 </div>
               )}
             </div>

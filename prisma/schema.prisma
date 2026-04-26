@@ -19,7 +19,7 @@ model Tour {
   cashCount             Int?
   mvvSingleTickets      Int      @default(0)
   mvvGroupTickets       Int      @default(0)
-  mvvReceiptUrl         String?
+  mvvReceiptUrls        String[]
   feeOverride           Float?
   notes                 String?
   createdAt             DateTime @default(now())

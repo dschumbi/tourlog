@@ -90,7 +90,7 @@ export default function ErfassenPage() {
       setFeeOverride(""); setNotes(""); setDate(today());
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
-      toast.error(msg === "upload" ? "Beleg-Upload fehlgeschlagen – Vercel Blob eingerichtet?" : "Fehler beim Speichern");
+      toast.error(msg === "upload" ? "Beleg-Upload fehlgeschlagen – Google Drive Zugangsdaten prüfen" : "Fehler beim Speichern");
     } finally {
       setSaving(false);
     }

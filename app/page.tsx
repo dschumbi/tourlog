@@ -29,6 +29,7 @@ export default function ErfassenPage() {
   const [mvvSingle, setMvvSingle] = useState("");
   const [mvvGroup, setMvvGroup] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [feeOverride, setFeeOverride] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -71,6 +72,7 @@ export default function ErfassenPage() {
           mvvSingleTickets: mvvSingle ? Number(mvvSingle) : 0,
           mvvGroupTickets: mvvGroup ? Number(mvvGroup) : 0,
           mvvReceiptUrl,
+          feeOverride: feeOverride ? Number(feeOverride) : null,
           notes: notes || null,
         }),
       });
@@ -80,7 +82,7 @@ export default function ErfassenPage() {
       setHotelPickup(false); setFiveStarReviews(0);
       setCancellationWithin48h(false); setCashCount("");
       setMvvSingle(""); setMvvGroup(""); setReceiptFile(null);
-      setNotes(""); setDate(today());
+      setFeeOverride(""); setNotes(""); setDate(today());
     } catch {
       toast.error("Fehler beim Speichern");
     } finally {
@@ -242,6 +244,26 @@ export default function ErfassenPage() {
             <div className="flex justify-between font-semibold border-t border-blue-200 pt-1 mt-1">
               <span>Gesamt</span>
               <span>{fees.total.toFixed(2)} €</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {fees && (
+        <Card>
+          <CardContent className="pt-4">
+            <div className="space-y-1">
+              <Label htmlFor="feeOverride">Honorar überschreiben (optional)</Label>
+              <Input
+                id="feeOverride"
+                type="number"
+                min={0}
+                step={0.01}
+                value={feeOverride}
+                onChange={(e) => setFeeOverride(e.target.value)}
+                placeholder={fees.total.toFixed(2)}
+              />
+              <p className="text-xs text-gray-400">Leer lassen = berechnetes Honorar ({fees.total.toFixed(2)} €)</p>
             </div>
           </CardContent>
         </Card>

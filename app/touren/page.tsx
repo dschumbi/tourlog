@@ -29,6 +29,7 @@ interface Tour {
   mvvSingleTickets: number;
   mvvGroupTickets: number;
   mvvReceiptUrl: string | null;
+  feeOverride: number | null;
   notes: string | null;
 }
 
@@ -161,7 +162,12 @@ export default function TourenPage() {
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
-                    <span className="font-semibold text-sm">{fees.total.toFixed(2)} €</span>
+                    <span className="font-semibold text-sm">
+                      {(tour.feeOverride ?? fees.total).toFixed(2)} €
+                      {tour.feeOverride != null && (
+                        <span className="ml-1 text-xs font-normal text-orange-500" title={`Berechnet: ${fees.total.toFixed(2)} €`}>✱</span>
+                      )}
+                    </span>
                     <div className="flex gap-1">
                       <Button size="icon" variant="ghost" className="h-7 w-7"
                         onClick={() => setEditTour({ ...tour, date: tour.date.split("T")[0] })}>
@@ -245,6 +251,16 @@ export default function TourenPage() {
                       mvvGroupTickets: Number(e.target.value) || 0,
                     })} />
                 </div>
+              </div>
+              <div className="space-y-1">
+                <Label>Honorar überschreiben (optional)</Label>
+                <Input type="number" min={0} step={0.01}
+                  value={editTour.feeOverride ?? ""}
+                  placeholder="Leer = automatisch"
+                  onChange={(e) => setEditTour({
+                    ...editTour,
+                    feeOverride: e.target.value ? Number(e.target.value) : null,
+                  })} />
               </div>
               <div className="space-y-1">
                 <Label>Notiz</Label>

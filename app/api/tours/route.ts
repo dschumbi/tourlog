@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
       mvvSingleTickets: body.mvvSingleTickets ?? 0,
       mvvGroupTickets: body.mvvGroupTickets ?? 0,
       mvvReceiptUrl: body.mvvReceiptUrl ?? null,
+      feeOverride: body.feeOverride ?? null,
       notes: body.notes ?? null,
     },
   });

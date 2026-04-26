@@ -55,10 +55,21 @@ export default function ErfassenPage() {
     try {
       let mvvReceiptUrls: string[] = [];
       if (receiptFiles.length > 0) {
+        const tourLabel = TOUR_TYPES.find((t) => t.id === tourType)?.label ?? tourType;
+        const folderName = `${date} ${tourLabel}`;
+        const folderRes = await fetch("/api/upload/folder", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: folderName }),
+        });
+        if (!folderRes.ok) throw new Error("upload");
+        const { folderId } = await folderRes.json();
+
         const uploads = await Promise.all(
           receiptFiles.map(async (file) => {
             const fd = new FormData();
             fd.append("file", file);
+            fd.append("folderId", folderId);
             const up = await fetch("/api/upload", { method: "POST", body: fd });
             if (!up.ok) throw new Error("upload");
             return (await up.json()).url as string;

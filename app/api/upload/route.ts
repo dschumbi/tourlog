@@ -16,25 +16,28 @@ function getDriveClient() {
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const file = formData.get("file") as File;
+  const folderId = formData.get("folderId") as string | null;
   if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
 
   const drive = getDriveClient();
   const buffer = Buffer.from(await file.arrayBuffer());
+  const stream = new Readable();
+  stream.push(buffer);
+  stream.push(null);
 
   const uploaded = await drive.files.create({
     requestBody: {
       name: file.name,
-      parents: [process.env.GOOGLE_DRIVE_FOLDER_ID!],
+      parents: [folderId ?? process.env.GOOGLE_DRIVE_FOLDER_ID!],
     },
     media: {
       mimeType: file.type || "application/octet-stream",
-      body: Readable.from(buffer),
+      body: stream,
     },
     fields: "id",
   });
 
   const fileId = uploaded.data.id!;
-
   await drive.permissions.create({
     fileId,
     requestBody: { type: "anyone", role: "reader" },

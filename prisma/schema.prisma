@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tour {
+  id                    Int      @id @default(autoincrement())
+  date                  DateTime
+  tourType              String
+  tourKind              String   // "public" | "private" | "cancelled"
+  paxCount              Int?
+  hotelPickup           Boolean  @default(false)
+  fiveStarReviews       Int      @default(0)
+  cancellationWithin48h Boolean  @default(false)
+  notes                 String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model Settings {
+  id             String @id @default("singleton")
+  // Eigene Daten (fest, in Code)
+  // Veranstalter (konfigurierbar)
+  clientName     String @default("")
+  clientAddress  String @default("")
+  clientCity     String @default("")
+  clientEmail    String @default("")
+  // Rechnungseinstellungen
+  invoicePrefix  String @default("RE")
+  paymentDays    Int    @default(14)
+  // n8n Webhook
+  n8nWebhookUrl  String @default("")
+}

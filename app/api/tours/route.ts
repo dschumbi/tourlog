@@ -35,6 +35,9 @@ export async function POST(req: NextRequest) {
       fiveStarReviews: body.fiveStarReviews ?? 0,
       cancellationWithin48h: body.cancellationWithin48h ?? false,
       cashCount: body.cashCount ?? null,
+      mvvSingleTickets: body.mvvSingleTickets ?? 0,
+      mvvGroupTickets: body.mvvGroupTickets ?? 0,
+      mvvReceiptUrl: body.mvvReceiptUrl ?? null,
       notes: body.notes ?? null,
     },
   });

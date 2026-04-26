@@ -26,6 +26,9 @@ interface Tour {
   fiveStarReviews: number;
   cancellationWithin48h: boolean;
   cashCount: number | null;
+  mvvSingleTickets: number;
+  mvvGroupTickets: number;
+  mvvReceiptUrl: string | null;
   notes: string | null;
 }
 
@@ -136,6 +139,22 @@ export default function TourenPage() {
                           {tour.cashCount} bar
                         </span>
                       )}
+                      {tour.mvvSingleTickets > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                          {tour.mvvSingleTickets}× Einzel
+                        </span>
+                      )}
+                      {tour.mvvGroupTickets > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                          {tour.mvvGroupTickets}× Gruppe
+                        </span>
+                      )}
+                      {tour.mvvReceiptUrl && (
+                        <a href={tour.mvvReceiptUrl} target="_blank" rel="noopener noreferrer"
+                          className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 underline">
+                          Beleg
+                        </a>
+                      )}
                     </div>
                     {tour.notes && (
                       <p className="text-xs text-gray-400 mt-1 truncate">{tour.notes}</p>
@@ -206,6 +225,26 @@ export default function TourenPage() {
                     ...editTour,
                     cashCount: e.target.value ? Number(e.target.value) : null,
                   })} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label>MVV Einzelkarten</Label>
+                  <Input type="number" min={0}
+                    value={editTour.mvvSingleTickets || ""}
+                    onChange={(e) => setEditTour({
+                      ...editTour,
+                      mvvSingleTickets: Number(e.target.value) || 0,
+                    })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>MVV Gruppenkarten</Label>
+                  <Input type="number" min={0}
+                    value={editTour.mvvGroupTickets || ""}
+                    onChange={(e) => setEditTour({
+                      ...editTour,
+                      mvvGroupTickets: Number(e.target.value) || 0,
+                    })} />
+                </div>
               </div>
               <div className="space-y-1">
                 <Label>Notiz</Label>

@@ -17,6 +17,9 @@ model Tour {
   fiveStarReviews       Int      @default(0)
   cancellationWithin48h Boolean  @default(false)
   cashCount             Int?
+  mvvSingleTickets      Int      @default(0)
+  mvvGroupTickets       Int      @default(0)
+  mvvReceiptUrl         String?
   notes                 String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -33,6 +36,9 @@ model Settings {
   // Rechnungseinstellungen
   invoicePrefix  String @default("RE")
   paymentDays    Int    @default(14)
+  // MVV Tickets
+  mvvSinglePrice Float  @default(0)
+  mvvGroupPrice  Float  @default(0)
   // n8n Webhook
   n8nWebhookUrl  String @default("")
 }

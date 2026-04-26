@@ -26,6 +26,9 @@ export default function ErfassenPage() {
   const [fiveStarReviews, setFiveStarReviews] = useState(0);
   const [cancellationWithin48h, setCancellationWithin48h] = useState(false);
   const [cashCount, setCashCount] = useState("");
+  const [mvvSingle, setMvvSingle] = useState("");
+  const [mvvGroup, setMvvGroup] = useState("");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -49,6 +52,14 @@ export default function ErfassenPage() {
     if (!tourType) { toast.error("Bitte Tour-Typ auswählen"); return; }
     setSaving(true);
     try {
+      let mvvReceiptUrl: string | null = null;
+      if (receiptFile) {
+        const fd = new FormData();
+        fd.append("file", receiptFile);
+        const up = await fetch("/api/upload", { method: "POST", body: fd });
+        if (!up.ok) throw new Error("Upload fehlgeschlagen");
+        mvvReceiptUrl = (await up.json()).url;
+      }
       const res = await fetch("/api/tours", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -57,6 +68,9 @@ export default function ErfassenPage() {
           paxCount: paxCount ? Number(paxCount) : null,
           hotelPickup, fiveStarReviews, cancellationWithin48h,
           cashCount: cashCount ? Number(cashCount) : null,
+          mvvSingleTickets: mvvSingle ? Number(mvvSingle) : 0,
+          mvvGroupTickets: mvvGroup ? Number(mvvGroup) : 0,
+          mvvReceiptUrl,
           notes: notes || null,
         }),
       });
@@ -64,7 +78,9 @@ export default function ErfassenPage() {
       toast.success("Tour gespeichert!");
       setTourType(""); setTourKind("public"); setPaxCount("");
       setHotelPickup(false); setFiveStarReviews(0);
-      setCancellationWithin48h(false); setCashCount(""); setNotes(""); setDate(today());
+      setCancellationWithin48h(false); setCashCount("");
+      setMvvSingle(""); setMvvGroup(""); setReceiptFile(null);
+      setNotes(""); setDate(today());
     } catch {
       toast.error("Fehler beim Speichern");
     } finally {
@@ -160,6 +176,30 @@ export default function ErfassenPage() {
               </div>
               {fiveStarReviews > 0 && (
                 <p className="text-xs text-gray-500">+{fiveStarReviews * 10} € Prämie</p>
+              )}
+            </div>
+          )}
+
+          {!isCancelled && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="mvvSingle">MVV Einzelkarten</Label>
+                  <Input id="mvvSingle" type="number" min={0} value={mvvSingle}
+                    onChange={(e) => setMvvSingle(e.target.value)} placeholder="0" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="mvvGroup">MVV Gruppenkarten</Label>
+                  <Input id="mvvGroup" type="number" min={0} value={mvvGroup}
+                    onChange={(e) => setMvvGroup(e.target.value)} placeholder="0" />
+                </div>
+              </div>
+              {(mvvSingle || mvvGroup) && (
+                <div className="space-y-1">
+                  <Label htmlFor="receipt">Beleg hochladen</Label>
+                  <Input id="receipt" type="file" accept="image/*,application/pdf"
+                    onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)} />
+                </div>
               )}
             </div>
           )}

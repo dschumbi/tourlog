@@ -13,12 +13,16 @@ interface Settings {
   clientEmail: string;
   invoicePrefix: string;
   paymentDays: number;
+  mvvSinglePrice: number;
+  mvvGroupPrice: number;
   n8nWebhookUrl: string;
 }
 
 const defaults: Settings = {
   clientName: "", clientAddress: "", clientCity: "", clientEmail: "",
-  invoicePrefix: "RE", paymentDays: 14, n8nWebhookUrl: "",
+  invoicePrefix: "RE", paymentDays: 14,
+  mvvSinglePrice: 0, mvvGroupPrice: 0,
+  n8nWebhookUrl: "",
 };
 
 export default function EinstellungenPage() {
@@ -103,6 +107,26 @@ export default function EinstellungenPage() {
             <Input id="paymentDays" type="number" min={1}
               value={settings.paymentDays}
               onChange={(e) => set("paymentDays", Number(e.target.value))} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">MVV Tickets</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1">
+            <Label htmlFor="mvvSinglePrice">Einzelkarte (€)</Label>
+            <Input id="mvvSinglePrice" type="number" min={0} step={0.01}
+              value={settings.mvvSinglePrice}
+              onChange={(e) => set("mvvSinglePrice", Number(e.target.value))} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="mvvGroupPrice">Gruppenkarte (€)</Label>
+            <Input id="mvvGroupPrice" type="number" min={0} step={0.01}
+              value={settings.mvvGroupPrice}
+              onChange={(e) => set("mvvGroupPrice", Number(e.target.value))} />
           </div>
         </CardContent>
       </Card>

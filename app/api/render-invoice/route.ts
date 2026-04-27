@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
   .totals .grand-total td { border-top: 2px solid #333; font-size: 15px; font-weight: bold; padding-top: 6px; }
   .totals .deduct td { color: #c00; }
   .totals .spacer td { height: 8px; border: none; }
-  .footer { margin-top: 60px; clear: both; font-size: 11px; color: #555; border-top: 1px solid #eee; padding-top: 16px; }
+  .footer { margin-top: 32px; clear: both; font-size: 11px; color: #555; border-top: 1px solid #eee; padding-top: 16px; break-inside: avoid; page-break-inside: avoid; }
   .footer-cols { display: flex; gap: 40px; }
 </style>
 </head>

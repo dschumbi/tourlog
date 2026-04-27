@@ -50,21 +50,13 @@ export async function GET(req: NextRequest) {
     return {
       date: t.date.toLocaleDateString("de-DE"),
       tourLabel: tourLabel(t.tourType),
-      tourKind: t.tourKind,
       paxCount: t.paxCount,
-      hotelPickup: t.hotelPickup,
       fiveStarReviews: t.fiveStarReviews,
-      baseFee: fees.baseFee,
-      hotelPickupFee: fees.hotelPickupFee,
-      reviewBonus: fees.reviewBonus,
-      cancellationFee: fees.cancellationFee,
       honorarNet,
       mvvSingleTickets: t.mvvSingleTickets,
       mvvGroupTickets: t.mvvGroupTickets,
       mvvGross,
       cashCount: t.cashCount ?? 0,
-      mvvReceiptUrls: t.mvvReceiptUrls,
-      notes: t.notes,
     };
   });
 
@@ -81,23 +73,6 @@ export async function GET(req: NextRequest) {
 
   // Bargeld-Verrechnung
   const cashTotal = toursWithFees.reduce((s, t) => s + t.cashCount, 0);
-
-  const amountDue = honorarGross + mvvBillingGross - cashTotal;
-
-  // Belege als base64 einbetten damit html2pdf keine externen URLs laden muss
-  async function toBase64Img(url: string): Promise<string> {
-    try {
-      const res = await fetch(url);
-      const buffer = await res.arrayBuffer();
-      const mime = res.headers.get("content-type") ?? "image/jpeg";
-      return `<img src="data:${mime};base64,${Buffer.from(buffer).toString("base64")}" style="max-width:100%;margin-bottom:12px;display:block;border:1px solid #eee;">`;
-    } catch {
-      return "";
-    }
-  }
-
-  const allReceiptUrls = toursWithFees.flatMap(t => t.mvvReceiptUrls).filter(Boolean);
-  const receiptImgTags = (await Promise.all(allReceiptUrls.map(toBase64Img))).join("");
 
   return NextResponse.json({
     month, year, monthName,
@@ -119,8 +94,7 @@ export async function GET(req: NextRequest) {
       billingGross: mvvBillingGross,
     },
     cashTotal,
-    amountDue,
-    receiptImgTags,
+    amountDue: honorarGross + mvvBillingGross - cashTotal,
     tours: toursWithFees,
   });
 }

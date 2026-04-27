@@ -6,56 +6,81 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const d = await req.json();
+  let d: any;
+  try {
+    d = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
-  const fmt = (n: number) => (n ?? 0).toFixed(2).replace(".", ",") + " €";
+  try {
+    const fmt = (n: number) => (n ?? 0).toFixed(2).replace(".", ",") + " €";
 
-  const tourRows = d.tours.map((t: any) => `
-    <tr>
-      <td>${t.date}</td>
-      <td>${t.tourLabel}</td>
-      <td style="text-align:center">${t.paxCount ?? "–"}</td>
-      <td style="text-align:right">${fmt(t.honorarNet)}</td>
-    </tr>
-  `).join("");
+    // Compute invoice fields from payload if not already set
+    const today = new Date();
+    const invoiceDate = d.invoiceDate ?? today.toLocaleDateString("de-DE");
+    const paymentDays = d.rechnung?.paymentDays ?? 14;
+    const dueD = new Date(today);
+    dueD.setDate(dueD.getDate() + paymentDays);
+    const dueDate = d.dueDate ?? dueD.toLocaleDateString("de-DE");
+    const prefix = d.rechnung?.prefix ?? "RE";
+    const m = String(d.month ?? today.getMonth() + 1).padStart(2, "0");
+    const yr = d.year ?? today.getFullYear();
+    const invoiceNumber = d.invoiceNumber ?? `${prefix}-${yr}-${m}-001`;
 
-  const auslagenRows = d.tours
-    .filter((t: any) => (t.mvvGross ?? 0) > 0)
-    .map((t: any) => {
-      const pos = [];
-      if (t.mvvSingleTickets > 0) pos.push(`${t.mvvSingleTickets}x Einzelkarte`);
-      if (t.mvvGroupTickets > 0) pos.push(`${t.mvvGroupTickets}x Gruppenkarte`);
-      return `
-        <tr>
-          <td>${t.date}</td>
-          <td>${t.tourLabel}</td>
-          <td>${pos.join(", ")}</td>
-          <td style="text-align:right">${fmt(t.mvvGross)}</td>
-          <td style="text-align:right">${fmt(t.mvvGross / 1.07)}</td>
-        </tr>
-      `;
-    }).join("");
+    const owner = d.owner ?? {};
+    const bank = d.bank ?? {};
+    const veranstalter = d.veranstalter ?? {};
 
-  const bargeldRows = d.tours
-    .filter((t: any) => (t.cashCount ?? 0) > 0)
-    .map((t: any) => `
+    const tours: any[] = d.tours ?? [];
+    const reviewItems: any[] = d.reviews?.items ?? [];
+
+    const tourRows = tours.map((t: any) => `
       <tr>
         <td>${t.date}</td>
         <td>${t.tourLabel}</td>
-        <td style="text-align:right">${fmt(t.cashCount)}</td>
+        <td style="text-align:center">${t.paxCount ?? "–"}</td>
+        <td style="text-align:right">${fmt(t.honorarNet)}</td>
       </tr>
     `).join("");
 
-  const reviewRows = (d.reviews?.items ?? []).map((r: any) => `
-    <tr>
-      <td>${r.date}</td>
-      <td>${r.tourLabel}</td>
-      <td style="text-align:center">${r.fiveStarReviews} ★</td>
-      <td style="text-align:right">${fmt(r.reviewBonus)}</td>
-    </tr>
-  `).join("");
+    const auslagenRows = tours
+      .filter((t: any) => (t.mvvGross ?? 0) > 0)
+      .map((t: any) => {
+        const pos = [];
+        if (t.mvvSingleTickets > 0) pos.push(`${t.mvvSingleTickets}x Einzelkarte`);
+        if (t.mvvGroupTickets > 0) pos.push(`${t.mvvGroupTickets}x Gruppenkarte`);
+        return `
+          <tr>
+            <td>${t.date}</td>
+            <td>${t.tourLabel}</td>
+            <td>${pos.join(", ")}</td>
+            <td style="text-align:right">${fmt(t.mvvGross)}</td>
+            <td style="text-align:right">${fmt(t.mvvGross / 1.07)}</td>
+          </tr>
+        `;
+      }).join("");
 
-  const html = `<!DOCTYPE html>
+    const bargeldRows = tours
+      .filter((t: any) => (t.cashCount ?? 0) > 0)
+      .map((t: any) => `
+        <tr>
+          <td>${t.date}</td>
+          <td>${t.tourLabel}</td>
+          <td style="text-align:right">${fmt(t.cashCount)}</td>
+        </tr>
+      `).join("");
+
+    const reviewRows = reviewItems.map((r: any) => `
+      <tr>
+        <td>${r.date}</td>
+        <td>${r.tourLabel}</td>
+        <td style="text-align:center">${r.fiveStarReviews} ★</td>
+        <td style="text-align:right">${fmt(r.reviewBonus)}</td>
+      </tr>
+    `).join("");
+
+    const html = `<!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -86,20 +111,20 @@ export async function POST(req: NextRequest) {
 
 <div class="header">
   <div>
-    <div class="sender">${d.owner.name} · ${d.owner.address} · ${d.owner.city}</div>
-    <strong>${d.veranstalter.name}</strong><br>
-    ${d.veranstalter.address}<br>
-    ${d.veranstalter.city}
+    <div class="sender">${owner.name ?? ""} · ${owner.address ?? ""} · ${owner.city ?? ""}</div>
+    <strong>${veranstalter.name ?? ""}</strong><br>
+    ${veranstalter.address ?? ""}<br>
+    ${veranstalter.city ?? ""}
   </div>
   <div style="text-align:right">
     <h1>Rechnung</h1>
-    Nr. ${d.invoiceNumber}<br>
-    Datum: ${d.invoiceDate}<br>
-    Fällig: ${d.dueDate}
+    Nr. ${invoiceNumber}<br>
+    Datum: ${invoiceDate}<br>
+    Fällig: ${dueDate}
   </div>
 </div>
 
-<p>Zeitraum: <strong>${d.monthName}</strong></p>
+<p>Zeitraum: <strong>${d.monthName ?? ""}</strong></p>
 
 <h2>Touren</h2>
 <table>
@@ -114,7 +139,7 @@ export async function POST(req: NextRequest) {
     ${tourRows}
     <tr class="sum-row">
       <td colspan="3">Summe Honorar (netto)</td>
-      <td style="text-align:right">${fmt(d.honorar.net)}</td>
+      <td style="text-align:right">${fmt(d.honorar?.net ?? 0)}</td>
     </tr>
   </tbody>
 </table>
@@ -133,7 +158,7 @@ ${reviewRows ? `
     ${reviewRows}
     <tr class="sum-row">
       <td colspan="3">Summe 5★ Prämien (netto)</td>
-      <td style="text-align:right">${fmt(d.reviews.total)}</td>
+      <td style="text-align:right">${fmt(d.reviews?.total ?? 0)}</td>
     </tr>
   </tbody>
 </table>
@@ -153,8 +178,8 @@ ${auslagenRows ? `
     ${auslagenRows}
     <tr class="sum-row">
       <td colspan="3">Summe Auslagen</td>
-      <td style="text-align:right">${fmt(d.mvv.purchaseGross)}</td>
-      <td style="text-align:right">${fmt(d.mvv.net)}</td>
+      <td style="text-align:right">${fmt(d.mvv?.purchaseGross ?? 0)}</td>
+      <td style="text-align:right">${fmt(d.mvv?.net ?? 0)}</td>
     </tr>
   </tbody>
 </table>
@@ -173,7 +198,7 @@ ${bargeldRows ? `
     ${bargeldRows}
     <tr class="sum-row">
       <td colspan="2">Summe Bargeld</td>
-      <td style="text-align:right">${fmt(d.cashTotal)}</td>
+      <td style="text-align:right">${fmt(d.cashTotal ?? 0)}</td>
     </tr>
   </tbody>
 </table>
@@ -181,55 +206,59 @@ ${bargeldRows ? `
 
 <div class="totals">
   <table>
-    <tr><td>Honorar (netto)</td><td>${fmt(d.honorar.net)}</td></tr>
-    <tr><td>zzgl. MwSt. 19%</td><td>${fmt(d.honorar.vat19)}</td></tr>
-    <tr class="subtotal"><td>Honorar (brutto)</td><td>${fmt(d.honorar.gross)}</td></tr>
+    <tr><td>Honorar (netto)</td><td>${fmt(d.honorar?.net ?? 0)}</td></tr>
+    <tr><td>zzgl. MwSt. 19%</td><td>${fmt(d.honorar?.vat19 ?? 0)}</td></tr>
+    <tr class="subtotal"><td>Honorar (brutto)</td><td>${fmt(d.honorar?.gross ?? 0)}</td></tr>
     ${(d.reviews?.gross ?? 0) > 0 ? `
     <tr class="spacer"><td></td><td></td></tr>
-    <tr><td>5★ Prämien (netto)</td><td>${fmt(d.reviews.total)}</td></tr>
-    <tr><td>zzgl. MwSt. 19%</td><td>${fmt(d.reviews.vat19)}</td></tr>
-    <tr class="subtotal"><td>5★ Prämien (brutto)</td><td>${fmt(d.reviews.gross)}</td></tr>
+    <tr><td>5★ Prämien (netto)</td><td>${fmt(d.reviews?.total ?? 0)}</td></tr>
+    <tr><td>zzgl. MwSt. 19%</td><td>${fmt(d.reviews?.vat19 ?? 0)}</td></tr>
+    <tr class="subtotal"><td>5★ Prämien (brutto)</td><td>${fmt(d.reviews?.gross ?? 0)}</td></tr>
     ` : ""}
     ${(d.mvv?.billingGross ?? 0) > 0 ? `
     <tr class="spacer"><td></td><td></td></tr>
-    <tr><td>Auslagen MVV (netto)</td><td>${fmt(d.mvv.net)}</td></tr>
-    <tr><td>zzgl. MwSt. 19%</td><td>${fmt(d.mvv.vat19)}</td></tr>
-    <tr class="subtotal"><td>Auslagen MVV (brutto)</td><td>${fmt(d.mvv.billingGross)}</td></tr>
+    <tr><td>Auslagen MVV (netto)</td><td>${fmt(d.mvv?.net ?? 0)}</td></tr>
+    <tr><td>zzgl. MwSt. 19%</td><td>${fmt(d.mvv?.vat19 ?? 0)}</td></tr>
+    <tr class="subtotal"><td>Auslagen MVV (brutto)</td><td>${fmt(d.mvv?.billingGross ?? 0)}</td></tr>
     ` : ""}
     ${(d.cashTotal ?? 0) > 0 ? `
     <tr class="spacer"><td></td><td></td></tr>
-    <tr class="deduct"><td>Abzgl. Bargeld</td><td>– ${fmt(d.cashTotal)}</td></tr>
+    <tr class="deduct"><td>Abzgl. Bargeld</td><td>– ${fmt(d.cashTotal ?? 0)}</td></tr>
     ` : ""}
-    <tr class="grand-total"><td>Gesamtbetrag</td><td>${fmt(d.amountDue)}</td></tr>
+    <tr class="grand-total"><td>Gesamtbetrag</td><td>${fmt(d.amountDue ?? 0)}</td></tr>
   </table>
 </div>
 
 <div class="footer">
   <div class="footer-cols">
     <div>
-      <strong>${d.owner.name}</strong><br>
-      ${d.owner.address}<br>
-      ${d.owner.city}<br>
-      ${d.owner.email ? `${d.owner.email}<br>` : ""}
-      ${d.owner.taxId ? `Steuernummer: ${d.owner.taxId}` : ""}
+      <strong>${owner.name ?? ""}</strong><br>
+      ${owner.address ?? ""}<br>
+      ${owner.city ?? ""}<br>
+      ${owner.email ? `${owner.email}<br>` : ""}
+      ${owner.taxId ? `Steuernummer: ${owner.taxId}` : ""}
     </div>
     <div>
       <strong>Bankverbindung</strong><br>
-      ${d.bank.name}<br>
-      IBAN: ${d.bank.iban}<br>
-      BIC: ${d.bank.bic}
+      ${bank.name ?? ""}<br>
+      IBAN: ${bank.iban ?? ""}<br>
+      BIC: ${bank.bic ?? ""}
     </div>
     <div>
-      Bitte überweisen Sie den Betrag von <strong>${fmt(d.amountDue)}</strong><br>
-      bis zum ${d.dueDate} unter Angabe der<br>
-      Rechnungsnummer <strong>${d.invoiceNumber}</strong>.
+      Bitte überweisen Sie den Betrag von <strong>${fmt(d.amountDue ?? 0)}</strong><br>
+      bis zum ${dueDate} unter Angabe der<br>
+      Rechnungsnummer <strong>${invoiceNumber}</strong>.
     </div>
   </div>
 </div>
 
 </body></html>`;
 
-  return new NextResponse(html, {
-    headers: { "Content-Type": "text/html; charset=utf-8" },
-  });
+    return new NextResponse(html, {
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+  } catch (e) {
+    console.error("render-invoice error:", e);
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
 }

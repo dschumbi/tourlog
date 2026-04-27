@@ -1,11 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TOUR_TYPES, calculateFees, type TourKind } from "@/lib/tour-types";
-import { ChevronLeft, ChevronRight, Send } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Tour {
   id: number;
@@ -24,8 +23,6 @@ export default function MonatPage() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [tours, setTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-
   useEffect(() => {
     setLoading(true);
     fetch(`/api/tours?year=${year}&month=${month}`)
@@ -64,46 +61,6 @@ export default function MonatPage() {
   const monthName = new Date(year, month - 1).toLocaleDateString("de-DE", {
     month: "long", year: "numeric",
   });
-
-  async function handleSendToN8n() {
-    setSending(true);
-    try {
-      const payload = {
-        month, year, monthName, total,
-        totalHonorar, totalReviews, totalCancellation,
-        veranstalter: {
-          name: settings.clientName ?? "",
-          address: settings.clientAddress ?? "",
-          city: settings.clientCity ?? "",
-          email: settings.clientEmail ?? "",
-        },
-        rechnung: {
-          prefix: settings.invoicePrefix ?? "RE",
-          paymentDays: settings.paymentDays ?? 14,
-        },
-        tours: toursWithFees.map((t) => ({
-          date: new Date(t.date).toLocaleDateString("de-DE"),
-          tourLabel: tourLabel(t.tourType),
-          tourKind: t.tourKind,
-          paxCount: t.paxCount,
-          hotelPickup: t.hotelPickup,
-          fiveStarReviews: t.fiveStarReviews,
-          ...t.fees,
-        })),
-      };
-      const res = await fetch("/api/n8n", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error();
-      toast.success("Daten an n8n gesendet!");
-    } catch {
-      toast.error("Fehler beim Senden an n8n");
-    } finally {
-      setSending(false);
-    }
-  }
 
   return (
     <div className="space-y-4">
@@ -170,10 +127,9 @@ export default function MonatPage() {
             ))}
           </div>
 
-          <Button className="w-full" onClick={handleSendToN8n} disabled={sending}>
-            <Send size={16} className="mr-2" />
-            {sending ? "Wird gesendet…" : "Rechnung erstellen (n8n)"}
-          </Button>
+          <p className="text-xs text-center text-gray-400">
+            Rechnung via n8n: Workflow manuell starten für {monthName}
+          </p>
         </>
       )}
     </div>

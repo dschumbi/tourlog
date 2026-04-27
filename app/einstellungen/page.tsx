@@ -96,6 +96,7 @@ export default function EinstellungenPage() {
   if (loading) return <p className="text-center text-gray-400 mt-10">Lädt…</p>;
 
   return (
+    <>
     <form onSubmit={handleSave} className="space-y-4">
       <Card>
         <CardHeader className="pb-3">
@@ -233,5 +234,6 @@ export default function EinstellungenPage() {
         {savingPassword ? "Wird gespeichert…" : "Passwort speichern"}
       </Button>
     </form>
+    </>
   );
 }

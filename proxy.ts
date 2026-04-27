@@ -1,7 +1,7 @@
 import { jwtVerify } from "jose";
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC = ["/login", "/api/auth", "/api/invoice-data"];
+const PUBLIC = ["/login", "/api/auth", "/api/invoice-data", "/api/merge-pdf"];
 
 export async function proxy(req: NextRequest) {
   const secret = process.env.SESSION_SECRET;

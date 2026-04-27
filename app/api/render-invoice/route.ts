@@ -254,9 +254,7 @@ ${bargeldRows ? `
 
 </body></html>`;
 
-    return new NextResponse(html, {
-      headers: { "Content-Type": "text/html; charset=utf-8" },
-    });
+    return NextResponse.json({ html });
   } catch (e) {
     console.error("render-invoice error:", e);
     return NextResponse.json({ error: String(e) }, { status: 500 });

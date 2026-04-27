@@ -77,6 +77,16 @@ export default function MonatPage() {
       const payload = {
         month, year, monthName, total,
         totalHonorar, totalReviews, totalCancellation,
+        veranstalter: {
+          name: settings.clientName ?? "",
+          address: settings.clientAddress ?? "",
+          city: settings.clientCity ?? "",
+          email: settings.clientEmail ?? "",
+        },
+        rechnung: {
+          prefix: settings.invoicePrefix ?? "RE",
+          paymentDays: settings.paymentDays ?? 14,
+        },
         tours: toursWithFees.map((t) => ({
           date: new Date(t.date).toLocaleDateString("de-DE"),
           tourLabel: tourLabel(t.tourType),

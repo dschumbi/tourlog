@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
   return new NextResponse(Buffer.from(mergedBytes), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": "inline; filename=rechnung.pdf",
+      "Content-Disposition": `attachment; filename="Rechnung-${year}-${String(month).padStart(2, "0")}.pdf"`,
     },
   });
 }

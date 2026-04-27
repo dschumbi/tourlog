@@ -36,7 +36,18 @@ export async function GET(req: NextRequest) {
     month: "long", year: "numeric",
   });
 
-  const toursWithFees = tours.map((t) => {
+  async function toBase64(url: string): Promise<string> {
+    try {
+      const res = await fetch(url);
+      const buffer = await res.arrayBuffer();
+      const mime = res.headers.get("content-type") ?? "image/jpeg";
+      return `data:${mime};base64,${Buffer.from(buffer).toString("base64")}`;
+    } catch {
+      return url;
+    }
+  }
+
+  const toursWithFees = await Promise.all(tours.map(async (t) => {
     const fees = calculateFees({
       tourType: t.tourType,
       tourKind: t.tourKind as TourKind,
@@ -47,6 +58,7 @@ export async function GET(req: NextRequest) {
     });
     const honorarNet = t.feeOverride ?? fees.total;
     const mvvGross = t.mvvSingleTickets * mvvSinglePrice + t.mvvGroupTickets * mvvGroupPrice;
+    const mvvReceiptUrls = await Promise.all(t.mvvReceiptUrls.map(toBase64));
     return {
       date: t.date.toLocaleDateString("de-DE"),
       tourLabel: tourLabel(t.tourType),
@@ -63,10 +75,10 @@ export async function GET(req: NextRequest) {
       mvvGroupTickets: t.mvvGroupTickets,
       mvvGross,
       cashCount: t.cashCount ?? 0,
-      mvvReceiptUrls: t.mvvReceiptUrls,
+      mvvReceiptUrls,
       notes: t.notes,
     };
-  });
+  }));
 
   // Honorar (netto, 19% MwSt.)
   const honorarNet = toursWithFees.reduce((s, t) => s + t.honorarNet, 0);

@@ -40,6 +40,8 @@ model Settings {
   // MVV Tickets
   mvvSinglePrice Float  @default(0)
   mvvGroupPrice  Float  @default(0)
+  // Passwort-Schutz
+  passwordHash   String @default("")
   // n8n Webhook
   n8nWebhookUrl  String @default("")
 }

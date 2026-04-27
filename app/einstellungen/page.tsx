@@ -30,10 +30,20 @@ export default function EinstellungenPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const [hasPassword, setHasPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+
   useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => r.json())
-      .then((data) => { setSettings({ ...defaults, ...data }); setLoading(false); });
+    Promise.all([
+      fetch("/api/settings").then((r) => r.json()),
+      fetch("/api/auth/password").then((r) => r.json()),
+    ]).then(([data, pw]) => {
+      setSettings({ ...defaults, ...data });
+      setHasPassword(pw.hasPassword);
+      setLoading(false);
+    });
   }, []);
 
   function set(key: keyof Settings, value: string | number) {
@@ -55,6 +65,31 @@ export default function EinstellungenPage() {
       toast.error("Fehler beim Speichern");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePasswordSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (newPassword && newPassword !== confirmPassword) {
+      toast.error("Passwörter stimmen nicht überein");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      const res = await fetch("/api/auth/password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newPassword }),
+      });
+      if (!res.ok) throw new Error();
+      setHasPassword(!!newPassword);
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success(newPassword ? "Passwort gesetzt" : "Passwort entfernt");
+    } catch {
+      toast.error("Fehler beim Speichern");
+    } finally {
+      setSavingPassword(false);
     }
   }
 
@@ -150,6 +185,52 @@ export default function EinstellungenPage() {
 
       <Button type="submit" className="w-full" disabled={saving}>
         {saving ? "Wird gespeichert…" : "Einstellungen speichern"}
+      </Button>
+    </form>
+
+    <form onSubmit={handlePasswordSave} className="space-y-4 mt-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Passwort-Schutz</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {hasPassword && (
+            <p className="text-sm text-green-600 dark:text-green-400">
+              Passwort ist aktiv
+            </p>
+          )}
+          <div className="space-y-1">
+            <Label htmlFor="newPassword">
+              {hasPassword ? "Neues Passwort" : "Passwort setzen"}
+            </Label>
+            <Input
+              id="newPassword"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder={hasPassword ? "Leer lassen = unverändert" : ""}
+            />
+          </div>
+          {newPassword && (
+            <div className="space-y-1">
+              <Label htmlFor="confirmPassword">Passwort bestätigen</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+          )}
+          {hasPassword && (
+            <p className="text-xs text-gray-400">
+              Passwort entfernen: Felder leer lassen und speichern.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+      <Button type="submit" className="w-full" disabled={savingPassword}>
+        {savingPassword ? "Wird gespeichert…" : "Passwort speichern"}
       </Button>
     </form>
   );

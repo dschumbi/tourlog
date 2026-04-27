@@ -68,12 +68,6 @@ export default function MonatPage() {
   async function handleSendToN8n() {
     setSending(true);
     try {
-      const settingsRes = await fetch("/api/settings");
-      const settings = await settingsRes.json();
-      if (!settings.n8nWebhookUrl) {
-        toast.error("Kein n8n Webhook konfiguriert (Einstellungen)");
-        return;
-      }
       const payload = {
         month, year, monthName, total,
         totalHonorar, totalReviews, totalCancellation,
@@ -97,7 +91,7 @@ export default function MonatPage() {
           ...t.fees,
         })),
       };
-      const res = await fetch(settings.n8nWebhookUrl, {
+      const res = await fetch("/api/n8n", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

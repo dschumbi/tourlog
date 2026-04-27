@@ -21,6 +21,7 @@ model Tour {
   mvvGroupTickets       Int      @default(0)
   mvvReceiptUrls        String[]
   feeOverride           Float?
+  reviewBilled          Boolean  @default(false)
   notes                 String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt

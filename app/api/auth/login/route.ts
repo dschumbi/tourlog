@@ -9,12 +9,11 @@ export async function POST(req: NextRequest) {
   if (!secret) return NextResponse.json({ error: "Not configured" }, { status: 500 });
 
   const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
-  if (!settings?.passwordHash) {
-    return NextResponse.json({ error: "No password set" }, { status: 401 });
-  }
 
-  const valid = await compare(password, settings.passwordHash);
-  if (!valid) return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+  if (settings?.passwordHash) {
+    const valid = await compare(password, settings.passwordHash);
+    if (!valid) return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+  }
 
   const token = await new SignJWT({})
     .setProtectedHeader({ alg: "HS256" })

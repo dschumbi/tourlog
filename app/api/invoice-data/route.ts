@@ -28,6 +28,9 @@ export async function GET(req: NextRequest) {
     prisma.settings.findUnique({ where: { id: "singleton" } }),
   ]);
 
+  const mvvSinglePrice = settings?.mvvSinglePrice ?? 0;
+  const mvvGroupPrice = settings?.mvvGroupPrice ?? 0;
+
   const tourLabel = (id: string) => TOUR_TYPES.find((t) => t.id === id)?.label ?? id;
   const monthName = new Date(year, month - 1).toLocaleDateString("de-DE", {
     month: "long", year: "numeric",
@@ -42,6 +45,8 @@ export async function GET(req: NextRequest) {
       fiveStarReviews: t.fiveStarReviews,
       cancellationWithin48h: t.cancellationWithin48h,
     });
+    const honorarNet = t.feeOverride ?? fees.total;
+    const mvvGross = t.mvvSingleTickets * mvvSinglePrice + t.mvvGroupTickets * mvvGroupPrice;
     return {
       date: t.date.toLocaleDateString("de-DE"),
       tourLabel: tourLabel(t.tourType),
@@ -49,18 +54,37 @@ export async function GET(req: NextRequest) {
       paxCount: t.paxCount,
       hotelPickup: t.hotelPickup,
       fiveStarReviews: t.fiveStarReviews,
-      ...fees,
+      baseFee: fees.baseFee,
+      hotelPickupFee: fees.hotelPickupFee,
+      reviewBonus: fees.reviewBonus,
+      cancellationFee: fees.cancellationFee,
+      honorarNet,
+      mvvSingleTickets: t.mvvSingleTickets,
+      mvvGroupTickets: t.mvvGroupTickets,
+      mvvGross,
+      cashCount: t.cashCount ?? 0,
+      mvvReceiptUrls: t.mvvReceiptUrls,
+      notes: t.notes,
     };
   });
 
-  const totalHonorar = toursWithFees.reduce((s, t) => s + t.baseFee + t.hotelPickupFee, 0);
-  const totalReviews = toursWithFees.reduce((s, t) => s + t.reviewBonus, 0);
-  const totalCancellation = toursWithFees.reduce((s, t) => s + t.cancellationFee, 0);
-  const total = toursWithFees.reduce((s, t) => s + t.total, 0);
+  // Honorar (netto, 19% MwSt.)
+  const honorarNet = toursWithFees.reduce((s, t) => s + t.honorarNet, 0);
+  const honorarVat19 = honorarNet * 0.19;
+  const honorarGross = honorarNet + honorarVat19;
+
+  // MVV Auslagen (brutto, 7% MwSt. enthalten)
+  const mvvTotalGross = toursWithFees.reduce((s, t) => s + t.mvvGross, 0);
+  const mvvTotalNet = mvvTotalGross / 1.07;
+  const mvvTotalVat7 = mvvTotalGross - mvvTotalNet;
+
+  // Bargeld-Verrechnung
+  const cashTotal = toursWithFees.reduce((s, t) => s + t.cashCount, 0);
+
+  const amountDue = honorarGross + mvvTotalGross - cashTotal;
 
   return NextResponse.json({
-    month, year, monthName, total,
-    totalHonorar, totalReviews, totalCancellation,
+    month, year, monthName,
     veranstalter: {
       name: settings?.clientName ?? "",
       address: settings?.clientAddress ?? "",
@@ -71,6 +95,10 @@ export async function GET(req: NextRequest) {
       prefix: settings?.invoicePrefix ?? "RE",
       paymentDays: settings?.paymentDays ?? 14,
     },
+    honorar: { net: honorarNet, vat19: honorarVat19, gross: honorarGross },
+    mvv: { gross: mvvTotalGross, net: mvvTotalNet, vat7: mvvTotalVat7 },
+    cashTotal,
+    amountDue,
     tours: toursWithFees,
   });
 }

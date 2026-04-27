@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
   const mergedBytes = await mergedPdf.save();
 
-  return new NextResponse(mergedBytes, {
+  return new NextResponse(Buffer.from(mergedBytes), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": "inline; filename=rechnung.pdf",

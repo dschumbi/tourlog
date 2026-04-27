@@ -73,15 +73,16 @@ export async function GET(req: NextRequest) {
   const honorarVat19 = honorarNet * 0.19;
   const honorarGross = honorarNet + honorarVat19;
 
-  // MVV Auslagen (brutto, 7% MwSt. enthalten)
-  const mvvTotalGross = toursWithFees.reduce((s, t) => s + t.mvvGross, 0);
-  const mvvTotalNet = mvvTotalGross / 1.07;
-  const mvvTotalVat7 = mvvTotalGross - mvvTotalNet;
+  // MVV Auslagen: Einkauf brutto mit 7%, Abrechnung netto + 19%
+  const mvvPurchaseGross = toursWithFees.reduce((s, t) => s + t.mvvGross, 0);
+  const mvvNet = mvvPurchaseGross / 1.07;
+  const mvvVat19 = mvvNet * 0.19;
+  const mvvBillingGross = mvvNet + mvvVat19;
 
   // Bargeld-Verrechnung
   const cashTotal = toursWithFees.reduce((s, t) => s + t.cashCount, 0);
 
-  const amountDue = honorarGross + mvvTotalGross - cashTotal;
+  const amountDue = honorarGross + mvvBillingGross - cashTotal;
 
   return NextResponse.json({
     month, year, monthName,
@@ -96,7 +97,12 @@ export async function GET(req: NextRequest) {
       paymentDays: settings?.paymentDays ?? 14,
     },
     honorar: { net: honorarNet, vat19: honorarVat19, gross: honorarGross },
-    mvv: { gross: mvvTotalGross, net: mvvTotalNet, vat7: mvvTotalVat7 },
+    mvv: {
+      purchaseGross: mvvPurchaseGross,
+      net: mvvNet,
+      vat19: mvvVat19,
+      billingGross: mvvBillingGross,
+    },
     cashTotal,
     amountDue,
     tours: toursWithFees,

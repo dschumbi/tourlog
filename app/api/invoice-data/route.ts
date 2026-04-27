@@ -84,6 +84,21 @@ export async function GET(req: NextRequest) {
 
   const amountDue = honorarGross + mvvBillingGross - cashTotal;
 
+  // Belege als base64 einbetten damit html2pdf keine externen URLs laden muss
+  async function toBase64Img(url: string): Promise<string> {
+    try {
+      const res = await fetch(url);
+      const buffer = await res.arrayBuffer();
+      const mime = res.headers.get("content-type") ?? "image/jpeg";
+      return `<img src="data:${mime};base64,${Buffer.from(buffer).toString("base64")}" style="max-width:100%;margin-bottom:12px;display:block;border:1px solid #eee;">`;
+    } catch {
+      return "";
+    }
+  }
+
+  const allReceiptUrls = toursWithFees.flatMap(t => t.mvvReceiptUrls).filter(Boolean);
+  const receiptImgTags = (await Promise.all(allReceiptUrls.map(toBase64Img))).join("");
+
   return NextResponse.json({
     month, year, monthName,
     veranstalter: {
@@ -105,6 +120,7 @@ export async function GET(req: NextRequest) {
     },
     cashTotal,
     amountDue,
+    receiptImgTags,
     tours: toursWithFees,
   });
 }

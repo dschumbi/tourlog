@@ -30,6 +30,16 @@ model Tour {
 model Settings {
   id             String @id @default("singleton")
   // Eigene Daten (fest, in Code)
+  // Eigene Daten
+  ownerName      String @default("")
+  ownerAddress   String @default("")
+  ownerCity      String @default("")
+  ownerEmail     String @default("")
+  ownerTaxId     String @default("")
+  // Bankverbindung
+  bankName       String @default("")
+  bankIban       String @default("")
+  bankBic        String @default("")
   // Veranstalter (konfigurierbar)
   clientName     String @default("")
   clientAddress  String @default("")

@@ -109,6 +109,18 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     month, year, monthName,
+    owner: {
+      name: settings?.ownerName ?? "",
+      address: settings?.ownerAddress ?? "",
+      city: settings?.ownerCity ?? "",
+      email: settings?.ownerEmail ?? "",
+      taxId: settings?.ownerTaxId ?? "",
+    },
+    bank: {
+      name: settings?.bankName ?? "",
+      iban: settings?.bankIban ?? "",
+      bic: settings?.bankBic ?? "",
+    },
     veranstalter: {
       name: settings?.clientName ?? "",
       address: settings?.clientAddress ?? "",

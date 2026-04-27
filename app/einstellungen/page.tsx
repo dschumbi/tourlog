@@ -7,6 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 interface Settings {
+  ownerName: string;
+  ownerAddress: string;
+  ownerCity: string;
+  ownerEmail: string;
+  ownerTaxId: string;
+  bankName: string;
+  bankIban: string;
+  bankBic: string;
   clientName: string;
   clientAddress: string;
   clientCity: string;
@@ -19,6 +27,8 @@ interface Settings {
 }
 
 const defaults: Settings = {
+  ownerName: "", ownerAddress: "", ownerCity: "", ownerEmail: "", ownerTaxId: "",
+  bankName: "", bankIban: "", bankBic: "",
   clientName: "", clientAddress: "", clientCity: "", clientEmail: "",
   invoicePrefix: "RE", paymentDays: 14,
   mvvSinglePrice: 0, mvvGroupPrice: 0,
@@ -98,6 +108,64 @@ export default function EinstellungenPage() {
   return (
     <>
     <form onSubmit={handleSave} className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Meine Daten</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1">
+            <Label htmlFor="ownerName">Name / Firma</Label>
+            <Input id="ownerName" value={settings.ownerName}
+              onChange={(e) => set("ownerName", e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="ownerAddress">Straße & Hausnummer</Label>
+            <Input id="ownerAddress" value={settings.ownerAddress}
+              onChange={(e) => set("ownerAddress", e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="ownerCity">PLZ & Ort</Label>
+            <Input id="ownerCity" value={settings.ownerCity}
+              onChange={(e) => set("ownerCity", e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="ownerEmail">E-Mail</Label>
+            <Input id="ownerEmail" type="email" value={settings.ownerEmail}
+              onChange={(e) => set("ownerEmail", e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="ownerTaxId">Steuernummer</Label>
+            <Input id="ownerTaxId" value={settings.ownerTaxId}
+              onChange={(e) => set("ownerTaxId", e.target.value)}
+              placeholder="z.B. 123/456/78901" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Bankverbindung</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1">
+            <Label htmlFor="bankName">Bank</Label>
+            <Input id="bankName" value={settings.bankName}
+              onChange={(e) => set("bankName", e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="bankIban">IBAN</Label>
+            <Input id="bankIban" value={settings.bankIban}
+              onChange={(e) => set("bankIban", e.target.value)}
+              placeholder="DE00 0000 0000 0000 0000 00" />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="bankBic">BIC</Label>
+            <Input id="bankBic" value={settings.bankBic}
+              onChange={(e) => set("bankBic", e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Veranstalter</CardTitle>

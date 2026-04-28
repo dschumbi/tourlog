@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   const key = req.nextUrl.searchParams.get("key");
@@ -18,7 +19,6 @@ export async function POST(req: NextRequest) {
     const bank = d.bank ?? {};
     const veranstalter = d.veranstalter ?? {};
 
-    // Compute invoice fields (same logic as render-invoice)
     const today = new Date();
     const todayXml = today.toISOString().slice(0, 10).replace(/-/g, "");
     const paymentDays = d.rechnung?.paymentDays ?? 14;
@@ -28,9 +28,10 @@ export async function POST(req: NextRequest) {
     const prefix = d.rechnung?.prefix ?? "RE";
     const m = String(d.month ?? today.getMonth() + 1).padStart(2, "0");
     const yr = d.year ?? today.getFullYear();
+    const month = d.month ?? today.getMonth() + 1;
+    const year = d.year ?? today.getFullYear();
     const invoiceNumber = d.invoiceNumber ?? `${prefix}-${yr}-${m}-001`;
 
-    // Split "PLZ Ort" into postcode and city
     function splitCity(cityStr: string) {
       const parts = (cityStr ?? "").trim().split(" ");
       return { postcode: parts[0] ?? "", city: (parts.slice(1).join(" ") || parts[0]) ?? "" };
@@ -50,6 +51,51 @@ export async function POST(req: NextRequest) {
     const duePayable = Math.round((grandTotal - cashTotal) * 100) / 100;
 
     const fmt = (n: number) => n.toFixed(2);
+
+    // Fetch receipt URLs from DB for MVV tours in this month
+    const monthStart = new Date(year, month - 1, 1);
+    const monthEnd = new Date(year, month, 1);
+    const toursWithReceipts = await prisma.tour.findMany({
+      where: {
+        date: { gte: monthStart, lt: monthEnd },
+        mvvReceiptUrls: { isEmpty: false },
+      },
+      select: { id: true, mvvReceiptUrls: true },
+    });
+
+    // Fetch and base64-encode each receipt
+    const attachments: Array<{ id: string; name: string; mimeCode: string; base64: string }> = [];
+    let attachIdx = 1;
+    for (const tour of toursWithReceipts) {
+      for (const url of tour.mvvReceiptUrls) {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          const contentType = res.headers.get("content-type") ?? "";
+          const mimeCode = contentType.split(";")[0].trim() || guessMime(url);
+          const buf = await res.arrayBuffer();
+          const base64 = Buffer.from(buf).toString("base64");
+          const ext = mimeCode === "application/pdf" ? "pdf" : mimeCode.split("/")[1] ?? "jpg";
+          attachments.push({
+            id: `beleg-${attachIdx}`,
+            name: `MVV Beleg ${attachIdx}`,
+            mimeCode,
+            base64,
+          });
+          attachIdx++;
+        } catch {
+          // skip unloadable receipts
+        }
+      }
+    }
+
+    const attachmentXml = attachments.map((a) => `
+  <ram:AdditionalReferencedDocument>
+    <ram:IssuerAssignedID>${escXml(a.id)}</ram:IssuerAssignedID>
+    <ram:TypeCode>916</ram:TypeCode>
+    <ram:Name>${escXml(a.name)}</ram:Name>
+    <ram:AttachmentBinaryObject mimeCode="${escXml(a.mimeCode)}" filename="${escXml(a.id)}.${a.mimeCode.split("/")[1] ?? "jpg"}">${a.base64}</ram:AttachmentBinaryObject>
+  </ram:AdditionalReferencedDocument>`).join("");
 
     let lineIndex = 1;
 
@@ -106,7 +152,7 @@ export async function POST(req: NextRequest) {
     <ram:TypeCode>380</ram:TypeCode>
     <ram:IssueDateTime>
       <udt:DateTimeString format="102">${todayXml}</udt:DateTimeString>
-    </ram:IssueDateTime>
+    </ram:IssueDateTime>${attachmentXml}
   </rsm:ExchangedDocument>
 
   <rsm:SupplyChainTradeTransaction>
@@ -195,4 +241,11 @@ ${lines}
 
 function escXml(s: string): string {
   return (s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function guessMime(url: string): string {
+  const lower = url.toLowerCase();
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".png")) return "image/png";
+  return "image/jpeg";
 }

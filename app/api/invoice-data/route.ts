@@ -106,9 +106,22 @@ export async function GET(req: NextRequest) {
 
   // Bargeld-Verrechnung
   const cashTotal = toursWithFees.reduce((s, t) => s + t.cashCount, 0);
+  const amountDue = honorarGross + reviewGross + mvvBillingGross - cashTotal;
+
+  const paymentDays = settings?.paymentDays ?? 14;
+  const today = new Date();
+  const dueD = new Date(today);
+  dueD.setDate(dueD.getDate() + paymentDays);
+  const invoiceDate = today.toLocaleDateString("de-DE");
+  const dueDate = dueD.toLocaleDateString("de-DE");
+  const amountDueFormatted = amountDue.toFixed(2).replace(".", ",") + " €";
+  const prefix = settings?.invoicePrefix ?? "RE";
+  const mPad = String(month).padStart(2, "0");
+  const invoiceNumber = `${prefix}-${year}-${mPad}-001`;
 
   return NextResponse.json({
     month, year, monthName,
+    invoiceDate, dueDate, invoiceNumber, amountDueFormatted,
     owner: {
       name: settings?.ownerName ?? "",
       address: settings?.ownerAddress ?? "",
@@ -135,7 +148,7 @@ export async function GET(req: NextRequest) {
     reviews: { items: reviewItems, total: reviewTotal, vat19: reviewVat19, gross: reviewGross },
     mvv: { purchaseGross: mvvPurchaseGross, net: mvvNet, vat19: mvvVat19, billingGross: mvvBillingGross },
     cashTotal,
-    amountDue: honorarGross + reviewGross + mvvBillingGross - cashTotal,
+    amountDue,
     reviewTourIds,
     tours: toursWithFees,
   });

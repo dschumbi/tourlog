@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     // Split "PLZ Ort" into postcode and city
     function splitCity(cityStr: string) {
       const parts = (cityStr ?? "").trim().split(" ");
-      return { postcode: parts[0] ?? "", city: parts.slice(1).join(" ") || parts[0] ?? "" };
+      return { postcode: parts[0] ?? "", city: (parts.slice(1).join(" ") || parts[0]) ?? "" };
     }
     const ownerCity = splitCity(owner.city);
     const buyerCity = splitCity(veranstalter.city);

@@ -25,6 +25,8 @@ export async function POST(req: NextRequest) {
     const dueD = new Date(today);
     dueD.setDate(dueD.getDate() + paymentDays);
     const dueDateXml = dueD.toISOString().slice(0, 10).replace(/-/g, "");
+    // Lieferdatum = letzter Tag des Abrechnungsmonats (Pflichtfeld EN 16931)
+    const deliveryDateXml = new Date(year, month, 0).toISOString().slice(0, 10).replace(/-/g, "");
     const prefix = d.rechnung?.prefix ?? "RE";
     const m = String(d.month ?? today.getMonth() + 1).padStart(2, "0");
     const yr = d.year ?? today.getFullYear();
@@ -152,7 +154,7 @@ export async function POST(req: NextRequest) {
     <ram:TypeCode>380</ram:TypeCode>
     <ram:IssueDateTime>
       <udt:DateTimeString format="102">${todayXml}</udt:DateTimeString>
-    </ram:IssueDateTime>${attachmentXml}
+    </ram:IssueDateTime>
   </rsm:ExchangedDocument>
 
   <rsm:SupplyChainTradeTransaction>
@@ -187,9 +189,16 @@ ${lines}
           <ram:URIID schemeID="EM">${escXml(veranstalter.email)}</ram:URIID>
         </ram:URIUniversalCommunication>` : ""}
       </ram:BuyerTradeParty>
+      ${attachmentXml}
     </ram:ApplicableHeaderTradeAgreement>
 
-    <ram:ApplicableHeaderTradeDelivery/>
+    <ram:ApplicableHeaderTradeDelivery>
+      <ram:ActualDeliverySupplyChainEvent>
+        <ram:OccurrenceDateTime>
+          <udt:DateTimeString format="102">${deliveryDateXml}</udt:DateTimeString>
+        </ram:OccurrenceDateTime>
+      </ram:ActualDeliverySupplyChainEvent>
+    </ram:ApplicableHeaderTradeDelivery>
 
     <ram:ApplicableHeaderTradeSettlement>
       <ram:PaymentReference>${escXml(invoiceNumber)}</ram:PaymentReference>

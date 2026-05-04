@@ -25,13 +25,13 @@ export async function POST(req: NextRequest) {
     const dueD = new Date(today);
     dueD.setDate(dueD.getDate() + paymentDays);
     const dueDateXml = dueD.toISOString().slice(0, 10).replace(/-/g, "");
-    // Lieferdatum = letzter Tag des Abrechnungsmonats (Pflichtfeld EN 16931)
-    const deliveryDateXml = new Date(year, month, 0).toISOString().slice(0, 10).replace(/-/g, "");
     const prefix = d.rechnung?.prefix ?? "RE";
     const m = String(d.month ?? today.getMonth() + 1).padStart(2, "0");
     const yr = d.year ?? today.getFullYear();
     const month = d.month ?? today.getMonth() + 1;
     const year = d.year ?? today.getFullYear();
+    // Lieferdatum = letzter Tag des Abrechnungsmonats (Pflichtfeld EN 16931)
+    const deliveryDateXml = new Date(year, month, 0).toISOString().slice(0, 10).replace(/-/g, "");
     const invoiceNumber = d.invoiceNumber ?? `${prefix}-${yr}-${m}-001`;
 
     function splitCity(cityStr: string) {

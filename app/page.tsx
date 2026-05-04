@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { TOUR_TYPES, calculateFees, type TourKind } from "@/lib/tour-types";
+import { calculateFees, type TourKind, type TourTypeConfig } from "@/lib/tour-types";
 
 const today = () => new Date().toISOString().split("T")[0];
 
 export default function ErfassenPage() {
+  const [tourTypes, setTourTypes] = useState<TourTypeConfig[]>([]);
   const [date, setDate] = useState(today());
   const [tourType, setTourType] = useState("");
   const [tourKind, setTourKind] = useState<TourKind>("public");
@@ -33,11 +34,16 @@ export default function ErfassenPage() {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    fetch("/api/tour-types").then((r) => r.json()).then(setTourTypes);
+  }, []);
+
   const isCancelled = tourKind === "cancelled_public" || tourKind === "cancelled_private";
   const isPrivate = tourKind === "private";
-  const isStreetArt = tourType === "street_art";
+  const selectedType = tourTypes.find((t) => t.id === tourType);
+  const isFlatFee = selectedType?.flatFee != null;
 
-  const fees = tourType
+  const fees = tourType && tourTypes.length > 0
     ? calculateFees({
         tourType,
         tourKind,
@@ -45,7 +51,7 @@ export default function ErfassenPage() {
         hotelPickup,
         fiveStarReviews,
         cancellationWithin48h,
-      })
+      }, tourTypes)
     : null;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -55,7 +61,7 @@ export default function ErfassenPage() {
     try {
       let mvvReceiptUrls: string[] = [];
       if (receiptFiles.length > 0) {
-        const tourLabel = TOUR_TYPES.find((t) => t.id === tourType)?.label ?? tourType;
+        const tourLabel = selectedType?.label ?? tourType;
         const shortId = Date.now().toString(36).slice(-4).toUpperCase();
         const folderPath = `receipts/${date} ${tourLabel} · ${shortId}`;
 
@@ -95,7 +101,7 @@ export default function ErfassenPage() {
       setFeeOverride(""); setNotes(""); setDate(today());
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
-      toast.error(msg === "upload" ? "Beleg-Upload fehlgeschlagen – Google Drive Zugangsdaten prüfen" : "Fehler beim Speichern");
+      toast.error(msg === "upload" ? "Beleg-Upload fehlgeschlagen" : "Fehler beim Speichern");
     } finally {
       setSaving(false);
     }
@@ -121,7 +127,7 @@ export default function ErfassenPage() {
                 <SelectValue placeholder="Tour auswählen…" />
               </SelectTrigger>
               <SelectContent>
-                {TOUR_TYPES.map((t) => (
+                {tourTypes.map((t) => (
                   <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -141,7 +147,7 @@ export default function ErfassenPage() {
             </Select>
           </div>
 
-          {!isCancelled && !isStreetArt && (
+          {!isCancelled && !isFlatFee && (
             <div className="space-y-1">
               <Label htmlFor="pax">Teilnehmer (pax)</Label>
               <Input id="pax" type="number" min={1} value={paxCount}

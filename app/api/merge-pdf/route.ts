@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { prisma } from "@/lib/prisma";
-import { calculateFees, type TourKind } from "@/lib/tour-types";
+import { calculateFees, dbRowToConfig, TOUR_TYPES, type TourKind } from "@/lib/tour-types";
 
 export async function POST(req: NextRequest) {
   const key = req.nextUrl.searchParams.get("key");
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   const invoicePdfBytes = await req.arrayBuffer();
 
-  const [tours, unbilledReviews, settings] = await Promise.all([
+  const [tours, unbilledReviews, settings, dbTourTypes] = await Promise.all([
     prisma.tour.findMany({
       where: { date: { gte: monthStart, lt: monthEnd } },
       orderBy: { date: "asc" },
@@ -31,7 +31,10 @@ export async function POST(req: NextRequest) {
       where: { date: { lt: monthStart }, fiveStarReviews: { gt: 0 }, reviewBilled: false },
     }),
     prisma.settings.findUnique({ where: { id: "singleton" } }),
+    prisma.tourType.findMany({ orderBy: { sortOrder: "asc" } }),
   ]);
+
+  const tourTypes = dbTourTypes.length > 0 ? dbTourTypes.map(dbRowToConfig) : TOUR_TYPES;
 
   // Beträge für Deckblatt berechnen
   const mvvSinglePrice = settings?.mvvSinglePrice ?? 0;
@@ -48,7 +51,7 @@ export async function POST(req: NextRequest) {
       hotelPickup: t.hotelPickup,
       fiveStarReviews: t.fiveStarReviews,
       cancellationWithin48h: t.cancellationWithin48h,
-    });
+    }, tourTypes);
     honorarNet += t.feeOverride ?? (fees.baseFee + fees.hotelPickupFee + fees.cancellationFee);
     mvvPurchaseGross += t.mvvSingleTickets * mvvSinglePrice + t.mvvGroupTickets * mvvGroupPrice;
     cashTotal += t.cashCount ?? 0;

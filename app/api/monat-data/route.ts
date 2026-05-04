@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { calculateFees, TOUR_TYPES, type TourKind } from "@/lib/tour-types";
+import { calculateFees, dbRowToConfig, TOUR_TYPES, type TourKind } from "@/lib/tour-types";
 
 export async function GET(req: NextRequest) {
   const yearParam = req.nextUrl.searchParams.get("year");
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const monthStart = new Date(year, month - 1, 1);
   const monthEnd = new Date(year, month, 1);
 
-  const [tours, unbilledReviews, settings] = await Promise.all([
+  const [tours, unbilledReviews, settings, dbTourTypes] = await Promise.all([
     prisma.tour.findMany({
       where: { date: { gte: monthStart, lt: monthEnd } },
       orderBy: { date: "asc" },
@@ -23,11 +23,13 @@ export async function GET(req: NextRequest) {
       orderBy: { date: "asc" },
     }),
     prisma.settings.findUnique({ where: { id: "singleton" } }),
+    prisma.tourType.findMany({ orderBy: { sortOrder: "asc" } }),
   ]);
 
+  const tourTypes = dbTourTypes.length > 0 ? dbTourTypes.map(dbRowToConfig) : TOUR_TYPES;
   const mvvSinglePrice = settings?.mvvSinglePrice ?? 0;
   const mvvGroupPrice = settings?.mvvGroupPrice ?? 0;
-  const tourLabel = (id: string) => TOUR_TYPES.find((t) => t.id === id)?.label ?? id;
+  const tourLabel = (id: string) => tourTypes.find((t) => t.id === id)?.label ?? id;
 
   const toursWithFees = tours.map((t) => {
     const fees = calculateFees({
@@ -37,7 +39,7 @@ export async function GET(req: NextRequest) {
       hotelPickup: t.hotelPickup,
       fiveStarReviews: t.fiveStarReviews,
       cancellationWithin48h: t.cancellationWithin48h,
-    });
+    }, tourTypes);
     const honorarNet = t.feeOverride ?? (fees.baseFee + fees.hotelPickupFee + fees.cancellationFee);
     const mvvGross = t.mvvSingleTickets * mvvSinglePrice + t.mvvGroupTickets * mvvGroupPrice;
     return {

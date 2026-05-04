@@ -1,12 +1,18 @@
 export type TourKind = "public" | "private" | "cancelled_public" | "cancelled_private";
 
+export interface Tier {
+  minPax: number;
+  fee: number;
+}
+
 export interface TourTypeConfig {
   id: string;
   label: string;
-  tiers: { minPax: number; fee: number }[];
-  flatFee?: number;
+  tiers: Tier[];
+  flatFee?: number | null;
 }
 
+// Seed-Daten — werden beim ersten Start in die DB geschrieben
 export const TOUR_TYPES: TourTypeConfig[] = [
   {
     id: "altstadt",
@@ -86,12 +92,15 @@ export const TOUR_TYPES: TourTypeConfig[] = [
   },
 ];
 
-export function getBaseFee(tourTypeId: string, paxCount: number | null): number {
-  const type = TOUR_TYPES.find((t) => t.id === tourTypeId);
+export function getBaseFee(
+  tourTypeId: string,
+  paxCount: number | null,
+  tourTypes: TourTypeConfig[] = TOUR_TYPES,
+): number {
+  const type = tourTypes.find((t) => t.id === tourTypeId);
   if (!type) return 0;
-  if (type.flatFee !== undefined) return type.flatFee;
+  if (type.flatFee != null) return type.flatFee;
   if (paxCount === null) return type.tiers[0]?.fee ?? 0;
-
   const sorted = [...type.tiers].sort((a, b) => b.minPax - a.minPax);
   const tier = sorted.find((t) => paxCount >= t.minPax);
   return tier?.fee ?? type.tiers[0]?.fee ?? 0;
@@ -105,22 +114,24 @@ export interface TourFees {
   total: number;
 }
 
-export function calculateFees(tour: {
-  tourType: string;
-  tourKind: TourKind;
-  paxCount: number | null;
-  hotelPickup: boolean;
-  fiveStarReviews: number;
-  cancellationWithin48h: boolean;
-}): TourFees {
+export function calculateFees(
+  tour: {
+    tourType: string;
+    tourKind: TourKind;
+    paxCount: number | null;
+    hotelPickup: boolean;
+    fiveStarReviews: number;
+    cancellationWithin48h: boolean;
+  },
+  tourTypes: TourTypeConfig[] = TOUR_TYPES,
+): TourFees {
   const isCancelled =
     tour.tourKind === "cancelled_public" || tour.tourKind === "cancelled_private";
 
-  const baseFee = isCancelled ? 0 : getBaseFee(tour.tourType, tour.paxCount);
+  const baseFee = isCancelled ? 0 : getBaseFee(tour.tourType, tour.paxCount, tourTypes);
   const hotelPickupFee =
     !isCancelled && tour.tourKind === "private" && tour.hotelPickup ? 10 : 0;
   const reviewBonus = isCancelled ? 0 : tour.fiveStarReviews * 10;
-  // Public cancellation: always 20€. Private: only if cancelled within 48h.
   const cancellationFee = isCancelled
     ? tour.tourKind === "cancelled_public"
       ? 20
@@ -135,5 +146,19 @@ export function calculateFees(tour: {
     reviewBonus,
     cancellationFee,
     total: baseFee + hotelPickupFee + reviewBonus + cancellationFee,
+  };
+}
+
+export function dbRowToConfig(row: {
+  id: string;
+  label: string;
+  flatFee: number | null;
+  tiers: unknown;
+}): TourTypeConfig {
+  return {
+    id: row.id,
+    label: row.label,
+    flatFee: row.flatFee,
+    tiers: (row.tiers as Tier[]) ?? [],
   };
 }

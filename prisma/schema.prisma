@@ -27,6 +27,14 @@ model Tour {
   updatedAt             DateTime @updatedAt
 }
 
+model TourType {
+  id        String  @id
+  label     String
+  flatFee   Float?
+  tiers     Json    @default("[]")
+  sortOrder Int     @default(0)
+}
+
 model Settings {
   id             String @id @default("singleton")
   // Eigene Daten (fest, in Code)

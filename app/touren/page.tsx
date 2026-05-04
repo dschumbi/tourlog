@@ -12,8 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { TOUR_TYPES, calculateFees, type TourKind } from "@/lib/tour-types";
+import { calculateFees, type TourKind, type TourTypeConfig } from "@/lib/tour-types";
 import { Pencil, Trash2 } from "lucide-react";
 
 interface Tour {
@@ -49,13 +48,18 @@ const KIND_COLORS: Record<string, string> = {
 
 export default function TourenPage() {
   const [tours, setTours] = useState<Tour[]>([]);
+  const [tourTypes, setTourTypes] = useState<TourTypeConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [editTour, setEditTour] = useState<Tour | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function load() {
-    const res = await fetch("/api/tours");
-    setTours(await res.json());
+    const [toursRes, typesRes] = await Promise.all([
+      fetch("/api/tours"),
+      fetch("/api/tour-types"),
+    ]);
+    setTours(await toursRes.json());
+    setTourTypes(await typesRes.json());
     setLoading(false);
   }
 
@@ -93,7 +97,11 @@ export default function TourenPage() {
   }
 
   const tourLabel = (id: string) =>
-    TOUR_TYPES.find((t) => t.id === id)?.label ?? id;
+    tourTypes.find((t) => t.id === id)?.label ?? id;
+
+  const editIsFlatFee = editTour
+    ? tourTypes.find((t) => t.id === editTour.tourType)?.flatFee != null
+    : false;
 
   if (loading) return <p className="text-center text-gray-400 mt-10">Lädt…</p>;
   if (tours.length === 0)
@@ -110,7 +118,7 @@ export default function TourenPage() {
             hotelPickup: tour.hotelPickup,
             fiveStarReviews: tour.fiveStarReviews,
             cancellationWithin48h: tour.cancellationWithin48h,
-          });
+          }, tourTypes);
           const dateStr = new Date(tour.date).toLocaleDateString("de-DE", {
             day: "2-digit", month: "2-digit", year: "numeric",
           });
@@ -199,6 +207,31 @@ export default function TourenPage() {
                   onChange={(e) => setEditTour({ ...editTour, date: e.target.value })} />
               </div>
               <div className="space-y-1">
+                <Label>Tour-Typ</Label>
+                <Select value={editTour.tourType}
+                  onValueChange={(v) => setEditTour({ ...editTour, tourType: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {tourTypes.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Art</Label>
+                <Select value={editTour.tourKind}
+                  onValueChange={(v) => setEditTour({ ...editTour, tourKind: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">Öffentlich</SelectItem>
+                    <SelectItem value="private">Privat</SelectItem>
+                    <SelectItem value="cancelled_public">Ausgefallen (öffentlich)</SelectItem>
+                    <SelectItem value="cancelled_private">Ausgefallen (privat)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
                 <Label>5★-Bewertungen</Label>
                 <div className="flex gap-2">
                   {[0, 1, 2, 3].map((n) => (
@@ -214,15 +247,17 @@ export default function TourenPage() {
                   ))}
                 </div>
               </div>
-              <div className="space-y-1">
-                <Label>Teilnehmer</Label>
-                <Input type="number" min={1}
-                  value={editTour.paxCount ?? ""}
-                  onChange={(e) => setEditTour({
-                    ...editTour,
-                    paxCount: e.target.value ? Number(e.target.value) : null,
-                  })} />
-              </div>
+              {!editIsFlatFee && (
+                <div className="space-y-1">
+                  <Label>Teilnehmer</Label>
+                  <Input type="number" min={1}
+                    value={editTour.paxCount ?? ""}
+                    onChange={(e) => setEditTour({
+                      ...editTour,
+                      paxCount: e.target.value ? Number(e.target.value) : null,
+                    })} />
+                </div>
+              )}
               <div className="space-y-1">
                 <Label>Bargeld (Anzahl Gäste)</Label>
                 <Input type="number" min={0}

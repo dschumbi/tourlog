@@ -209,7 +209,7 @@ export default function TourenPage() {
               <div className="space-y-1">
                 <Label>Tour-Typ</Label>
                 <Select value={editTour.tourType}
-                  onValueChange={(v) => setEditTour({ ...editTour, tourType: v })}>
+                  onValueChange={(v) => setEditTour({ ...editTour, tourType: v ?? editTour.tourType })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {tourTypes.map((t) => (

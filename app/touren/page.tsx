@@ -221,7 +221,7 @@ export default function TourenPage() {
               <div className="space-y-1">
                 <Label>Art</Label>
                 <Select value={editTour.tourKind}
-                  onValueChange={(v) => setEditTour({ ...editTour, tourKind: v })}>
+                  onValueChange={(v) => setEditTour({ ...editTour, tourKind: v ?? editTour.tourKind })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="public">Öffentlich</SelectItem>

@@ -136,7 +136,7 @@ export default function ErfassenPage() {
 
           <div className="space-y-1">
             <Label htmlFor="tourKind">Art</Label>
-            <Select value={tourKind} onValueChange={(v) => setTourKind(v as TourKind)}>
+            <Select value={tourKind} onValueChange={(v) => { if (v) setTourKind(v as TourKind); }}>
               <SelectTrigger id="tourKind"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="public">Öffentlich</SelectItem>

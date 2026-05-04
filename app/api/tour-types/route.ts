@@ -20,7 +20,7 @@ export async function GET() {
         id: t.id,
         label: t.label,
         flatFee: t.flatFee ?? null,
-        tiers: t.tiers,
+        tiers: JSON.parse(JSON.stringify(t.tiers)),
         sortOrder: i,
       })),
       skipDuplicates: true,

@@ -19,6 +19,16 @@ export async function POST(req: NextRequest) {
     const bank = d.bank ?? {};
     const veranstalter = d.veranstalter ?? {};
 
+    // Fetch DB settings as fallback for fields n8n might not pass
+    const dbSettings = await prisma.settings.findFirst({ where: { id: "singleton" } });
+    const ownerName = owner.name || dbSettings?.ownerName || "";
+    const ownerAddress = owner.address || dbSettings?.ownerAddress || "";
+    const ownerCityRaw = owner.city || dbSettings?.ownerCity || "";
+    const ownerEmail = owner.email || dbSettings?.ownerEmail || "";
+    const ownerTaxId = owner.taxId || dbSettings?.ownerTaxId || "";
+    const bankIban = (bank.iban || dbSettings?.bankIban || "").replace(/\s/g, "");
+    const bankBic = bank.bic || dbSettings?.bankBic || "";
+
     const today = new Date();
     const todayXml = today.toISOString().slice(0, 10).replace(/-/g, "");
     const paymentDays = d.rechnung?.paymentDays ?? 14;
@@ -38,7 +48,7 @@ export async function POST(req: NextRequest) {
       const parts = (cityStr ?? "").trim().split(" ");
       return { postcode: parts[0] ?? "", city: (parts.slice(1).join(" ") || parts[0]) ?? "" };
     }
-    const ownerCity = splitCity(owner.city);
+    const ownerCity = splitCity(ownerCityRaw);
     const buyerCity = splitCity(veranstalter.city);
 
     const honorarNet = d.honorar?.net ?? 0;
@@ -144,6 +154,9 @@ export async function POST(req: NextRequest) {
   xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
 
   <rsm:ExchangedDocumentContext>
+    <ram:BusinessProcessSpecifiedDocumentContextParameter>
+      <ram:ID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</ram:ID>
+    </ram:BusinessProcessSpecifiedDocumentContextParameter>
     <ram:GuidelineSpecifiedDocumentContextParameter>
       <ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xoev-de:kosit:standard:xrechnung_3.0</ram:ID>
     </ram:GuidelineSpecifiedDocumentContextParameter>
@@ -163,18 +176,24 @@ ${lines}
     <ram:ApplicableHeaderTradeAgreement>
       <ram:BuyerReference>${escXml(invoiceNumber)}</ram:BuyerReference>
       <ram:SellerTradeParty>
-        <ram:Name>${escXml(owner.name ?? "")}</ram:Name>
+        <ram:Name>${escXml(ownerName)}</ram:Name>
+        <ram:DefinedTradeContact>
+          <ram:PersonName>${escXml(ownerName)}</ram:PersonName>
+          ${ownerEmail ? `<ram:EmailURIUniversalCommunication>
+            <ram:URIID>${escXml(ownerEmail)}</ram:URIID>
+          </ram:EmailURIUniversalCommunication>` : ""}
+        </ram:DefinedTradeContact>
         <ram:PostalTradeAddress>
           <ram:PostcodeCode>${escXml(ownerCity.postcode)}</ram:PostcodeCode>
-          <ram:LineOne>${escXml(owner.address ?? "")}</ram:LineOne>
+          <ram:LineOne>${escXml(ownerAddress)}</ram:LineOne>
           <ram:CityName>${escXml(ownerCity.city)}</ram:CityName>
           <ram:CountryID>DE</ram:CountryID>
         </ram:PostalTradeAddress>
-        ${owner.email ? `<ram:URIUniversalCommunication>
-          <ram:URIID schemeID="EM">${escXml(owner.email)}</ram:URIID>
+        ${ownerEmail ? `<ram:URIUniversalCommunication>
+          <ram:URIID schemeID="EM">${escXml(ownerEmail)}</ram:URIID>
         </ram:URIUniversalCommunication>` : ""}
-        ${owner.taxId ? `<ram:SpecifiedTaxRegistration>
-          <ram:ID schemeID="FC">${escXml(owner.taxId)}</ram:ID>
+        ${ownerTaxId ? `<ram:SpecifiedTaxRegistration>
+          <ram:ID schemeID="FC">${escXml(ownerTaxId)}</ram:ID>
         </ram:SpecifiedTaxRegistration>` : ""}
       </ram:SellerTradeParty>
       <ram:BuyerTradeParty>
@@ -203,13 +222,13 @@ ${lines}
     <ram:ApplicableHeaderTradeSettlement>
       <ram:PaymentReference>${escXml(invoiceNumber)}</ram:PaymentReference>
       <ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>
-      ${bank.iban ? `<ram:SpecifiedTradeSettlementPaymentMeans>
+      ${bankIban ? `<ram:SpecifiedTradeSettlementPaymentMeans>
         <ram:TypeCode>58</ram:TypeCode>
         <ram:PayeePartyCreditorFinancialAccount>
-          <ram:IBANID>${escXml(bank.iban.replace(/\s/g, ""))}</ram:IBANID>
+          <ram:IBANID>${escXml(bankIban)}</ram:IBANID>
         </ram:PayeePartyCreditorFinancialAccount>
-        ${bank.bic ? `<ram:PayeeSpecifiedCreditorFinancialInstitution>
-          <ram:BICID>${escXml(bank.bic)}</ram:BICID>
+        ${bankBic ? `<ram:PayeeSpecifiedCreditorFinancialInstitution>
+          <ram:BICID>${escXml(bankBic)}</ram:BICID>
         </ram:PayeeSpecifiedCreditorFinancialInstitution>` : ""}
       </ram:SpecifiedTradeSettlementPaymentMeans>` : ""}
       <ram:ApplicableTradeTax>

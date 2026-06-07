@@ -17,6 +17,13 @@ import { calculateFees, type TourKind, type TourTypeConfig } from "@/lib/tour-ty
 
 const today = () => new Date().toISOString().split("T")[0];
 
+const KIND_LABELS: Record<string, string> = {
+  public: "Öffentlich",
+  private: "Privat",
+  cancelled_public: "Ausgefallen (öffentlich)",
+  cancelled_private: "Ausgefallen (privat)",
+};
+
 export default function ErfassenPage() {
   const [tourTypes, setTourTypes] = useState<TourTypeConfig[]>([]);
   const [date, setDate] = useState(today());
@@ -123,8 +130,10 @@ export default function ErfassenPage() {
           <div className="space-y-1">
             <Label htmlFor="tourType">Tour-Typ</Label>
             <Select value={tourType} onValueChange={(v) => setTourType(v ?? "")}>
-              <SelectTrigger id="tourType">
-                <SelectValue placeholder="Tour auswählen…" />
+              <SelectTrigger id="tourType" className="w-full">
+                <SelectValue>
+                  {tourTypes.find((t) => t.id === tourType)?.label ?? "Tour auswählen…"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {tourTypes.map((t) => (
@@ -137,7 +146,9 @@ export default function ErfassenPage() {
           <div className="space-y-1">
             <Label htmlFor="tourKind">Art</Label>
             <Select value={tourKind} onValueChange={(v) => { if (v) setTourKind(v as TourKind); }}>
-              <SelectTrigger id="tourKind"><SelectValue /></SelectTrigger>
+              <SelectTrigger id="tourKind" className="w-full">
+                <SelectValue>{KIND_LABELS[tourKind]}</SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="public">Öffentlich</SelectItem>
                 <SelectItem value="private">Privat</SelectItem>

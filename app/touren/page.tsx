@@ -233,7 +233,11 @@ export default function TourenPage() {
                 <Label>Tour-Typ</Label>
                 <Select value={editTour.tourType}
                   onValueChange={(v) => setEditTour({ ...editTour, tourType: v ?? editTour.tourType })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {tourTypes.find((t) => t.id === editTour.tourType)?.label ?? editTour.tourType}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     {tourTypes.map((t) => (
                       <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
@@ -245,7 +249,9 @@ export default function TourenPage() {
                 <Label>Art</Label>
                 <Select value={editTour.tourKind}
                   onValueChange={(v) => setEditTour({ ...editTour, tourKind: v ?? editTour.tourKind })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>{KIND_LABELS[editTour.tourKind]}</SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="public">Öffentlich</SelectItem>
                     <SelectItem value="private">Privat</SelectItem>

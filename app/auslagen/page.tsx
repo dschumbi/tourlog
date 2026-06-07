@@ -246,7 +246,13 @@ export default function AuslagenPage() {
                 <Select
                   value={dialog.data.tourId != null ? String(dialog.data.tourId) : "none"}
                   onValueChange={(v) => v && update({ tourId: v === "none" ? null : Number(v) })}>
-                  <SelectTrigger><SelectValue placeholder="— keine Tour —" /></SelectTrigger>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {dialog.data.tourId != null
+                        ? tourLabel(tours.find((t) => t.id === dialog.data.tourId) ?? tours[0])
+                        : "— keine Tour —"}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">— keine Tour —</SelectItem>
                     {tours.map((t) => (

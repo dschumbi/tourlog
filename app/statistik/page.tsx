@@ -123,28 +123,44 @@ export default function StatistikPage() {
           </Card>
 
           {/* Detailtabelle */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Details</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="grid grid-cols-[1fr_auto_auto_auto] text-xs text-gray-400 px-4 py-2 border-b font-medium">
-                <span>Land</span>
-                <span className="text-right pr-4">Gäste</span>
-                <span className="text-right pr-4">Trinkgeld gesamt</span>
-                <span className="text-right">Ø / Gast</span>
-              </div>
-              {chartData.map((row) => (
-                <div key={row.country}
-                  className="grid grid-cols-[1fr_auto_auto_auto] text-sm px-4 py-2 border-b last:border-0">
-                  <span className="font-medium">{row.country}</span>
-                  <span className="text-right pr-4 text-gray-600">{row.totalGuests}</span>
-                  <span className="text-right pr-4 text-gray-600">{fmt(row.totalTip)}</span>
-                  <span className="text-right font-medium">{fmt(row.avgTipPerGuest)}</span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+          {(() => {
+            const totalGuests = chartData.reduce((s, r) => s + r.totalGuests, 0);
+            const totalTip = chartData.reduce((s, r) => s + r.totalTip, 0);
+            const avgTip = totalGuests > 0 ? totalTip / totalGuests : 0;
+            return (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Details</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {/* Header */}
+                  <div className="grid grid-cols-[1fr_2.5rem_5.5rem_4.5rem] text-xs font-medium text-gray-400 bg-gray-50 px-4 py-2 border-b">
+                    <span>Land</span>
+                    <span className="text-right">Gäste</span>
+                    <span className="text-right">Trinkgeld</span>
+                    <span className="text-right">Ø / Gast</span>
+                  </div>
+                  {/* Rows */}
+                  {chartData.map((row, i) => (
+                    <div key={row.country}
+                      className={`grid grid-cols-[1fr_2.5rem_5.5rem_4.5rem] text-sm px-4 py-2.5 border-b ${i % 2 === 1 ? "bg-gray-50/50" : ""}`}>
+                      <span className="font-medium truncate pr-2">{row.country}</span>
+                      <span className="text-right tabular-nums text-gray-600">{row.totalGuests}</span>
+                      <span className="text-right tabular-nums text-gray-600">{fmt(row.totalTip)}</span>
+                      <span className="text-right tabular-nums font-semibold">{fmt(row.avgTipPerGuest)}</span>
+                    </div>
+                  ))}
+                  {/* Summenzeile */}
+                  <div className="grid grid-cols-[1fr_2.5rem_5.5rem_4.5rem] text-sm px-4 py-2.5 border-t-2 bg-gray-50 font-semibold">
+                    <span>Gesamt</span>
+                    <span className="text-right tabular-nums">{totalGuests}</span>
+                    <span className="text-right tabular-nums">{fmt(totalTip)}</span>
+                    <span className="text-right tabular-nums">{fmt(avgTip)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
         </>
       )}
     </div>

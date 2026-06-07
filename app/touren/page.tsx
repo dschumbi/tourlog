@@ -13,7 +13,15 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { calculateFees, type TourKind, type TourTypeConfig } from "@/lib/tour-types";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Plus } from "lucide-react";
+
+interface TourGuestItem {
+  id: number;
+  countryId: number;
+  country: { id: number; name: string };
+  guestCount: number;
+  tip: number;
+}
 
 interface Tour {
   id: number;
@@ -30,7 +38,10 @@ interface Tour {
   mvvReceiptUrls: string[];
   feeOverride: number | null;
   notes: string | null;
+  tourGuests: TourGuestItem[];
 }
+
+interface Country { id: number; name: string; }
 
 interface SimpleExpense {
   id: number;
@@ -60,19 +71,24 @@ export default function TourenPage() {
   const [tours, setTours] = useState<Tour[]>([]);
   const [tourTypes, setTourTypes] = useState<TourTypeConfig[]>([]);
   const [expenses, setExpenses] = useState<SimpleExpense[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
   const [loading, setLoading] = useState(true);
   const [editTour, setEditTour] = useState<Tour | null>(null);
+  const [editGuests, setEditGuests] = useState<{ countryId: number; guestCount: number; tip: number }[]>([]);
+  const [guestForm, setGuestForm] = useState<{ countryId: string; guestCount: string; tip: string }>({ countryId: "", guestCount: "", tip: "" });
   const [saving, setSaving] = useState(false);
 
   async function load() {
-    const [toursRes, typesRes, expRes] = await Promise.all([
+    const [toursRes, typesRes, expRes, ctrRes] = await Promise.all([
       fetch("/api/tours"),
       fetch("/api/tour-types"),
       fetch("/api/auslagen"),
+      fetch("/api/countries"),
     ]);
     setTours(await toursRes.json());
     setTourTypes(await typesRes.json());
     setExpenses(await expRes.json());
+    setCountries(await ctrRes.json());
     setLoading(false);
   }
 
@@ -83,6 +99,23 @@ export default function TourenPage() {
     await fetch(`/api/tours/${id}`, { method: "DELETE" });
     toast.success("Tour gelöscht");
     load();
+  }
+
+  function openEdit(tour: Tour) {
+    setEditTour({ ...tour, date: tour.date.split("T")[0] });
+    setEditGuests(tour.tourGuests.map((g) => ({ countryId: g.countryId, guestCount: g.guestCount, tip: g.tip })));
+    setGuestForm({ countryId: "", guestCount: "", tip: "" });
+  }
+
+  function addGuest() {
+    if (!guestForm.countryId || !guestForm.guestCount) return;
+    const countryId = Number(guestForm.countryId);
+    if (editGuests.some((g) => g.countryId === countryId)) {
+      toast.error("Dieses Land ist bereits eingetragen");
+      return;
+    }
+    setEditGuests([...editGuests, { countryId, guestCount: Number(guestForm.guestCount), tip: Number(guestForm.tip) || 0 }]);
+    setGuestForm({ countryId: "", guestCount: "", tip: "" });
   }
 
   async function handleSave() {
@@ -96,6 +129,7 @@ export default function TourenPage() {
           ...editTour,
           date: editTour.date.split("T")[0],
           paxCount: editTour.paxCount ?? null,
+          tourGuests: editGuests,
         }),
       });
       if (!res.ok) throw new Error();
@@ -201,7 +235,7 @@ export default function TourenPage() {
                     </span>
                     <div className="flex gap-1">
                       <Button size="icon" variant="ghost" className="h-7 w-7"
-                        onClick={() => setEditTour({ ...tour, date: tour.date.split("T")[0] })}>
+                        onClick={() => openEdit(tour)}>
                         <Pencil size={14} />
                       </Button>
                       <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400"
@@ -331,6 +365,60 @@ export default function TourenPage() {
                 <Input value={editTour.notes ?? ""}
                   onChange={(e) => setEditTour({ ...editTour, notes: e.target.value || null })} />
               </div>
+
+              {/* Herkunft & Trinkgeld */}
+              {countries.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  <Label>Herkunft & Trinkgeld</Label>
+                  {editGuests.length > 0 && (
+                    <div className="space-y-1">
+                      {editGuests.map((g) => {
+                        const name = countries.find((c) => c.id === g.countryId)?.name ?? "?";
+                        return (
+                          <div key={g.countryId} className="flex items-center justify-between text-sm bg-gray-50 rounded-md px-2 py-1">
+                            <span className="flex-1 truncate">{name}</span>
+                            <span className="text-gray-500 text-xs mx-2">{g.guestCount} Gäste · {g.tip.toFixed(2)} €</span>
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-red-400 shrink-0"
+                              type="button"
+                              onClick={() => setEditGuests(editGuests.filter((x) => x.countryId !== g.countryId))}>
+                              <Trash2 size={12} />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-[1fr_auto_auto_auto] gap-1 items-end">
+                    <div>
+                      <Select value={guestForm.countryId}
+                        onValueChange={(v) => v && setGuestForm({ ...guestForm, countryId: v })}>
+                        <SelectTrigger className="w-full h-8">
+                          <SelectValue>
+                            {guestForm.countryId
+                              ? countries.find((c) => c.id === Number(guestForm.countryId))?.name ?? "Land"
+                              : "Land"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {countries.map((c) => (
+                            <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Input className="h-8 w-16" type="number" min={1} placeholder="Pax"
+                      value={guestForm.guestCount}
+                      onChange={(e) => setGuestForm({ ...guestForm, guestCount: e.target.value })} />
+                    <Input className="h-8 w-20" type="number" min={0} step={0.01} placeholder="Tip €"
+                      value={guestForm.tip}
+                      onChange={(e) => setGuestForm({ ...guestForm, tip: e.target.value })} />
+                    <Button type="button" size="icon" className="h-8 w-8" onClick={addGuest}
+                      disabled={!guestForm.countryId || !guestForm.guestCount}>
+                      <Plus size={14} />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>

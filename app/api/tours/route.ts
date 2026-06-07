@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
   const tours = await prisma.tour.findMany({
     where,
     orderBy: { date: "desc" },
+    include: { tourGuests: { include: { country: true }, orderBy: { country: { name: "asc" } } } },
   });
   return NextResponse.json(tours);
 }

@@ -26,6 +26,7 @@ model Tour {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   expenses              Expense[]
+  tourGuests            TourGuest[]
 }
 
 model TourType {
@@ -48,6 +49,25 @@ model Expense {
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Country {
+  id         Int         @id @default(autoincrement())
+  name       String      @unique
+  sortOrder  Int         @default(0)
+  tourGuests TourGuest[]
+}
+
+model TourGuest {
+  id         Int     @id @default(autoincrement())
+  tourId     Int
+  tour       Tour    @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  countryId  Int
+  country    Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  guestCount Int
+  tip        Float   @default(0)
+
+  @@unique([tourId, countryId])
 }
 
 model Settings {

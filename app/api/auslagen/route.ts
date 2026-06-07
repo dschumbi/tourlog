@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
       description: body.description,
       grossAmount: Number(body.grossAmount),
       vatRate: Number(body.vatRate),
+      tourId: body.tourId ? Number(body.tourId) : null,
       receiptUrl: body.receiptUrl ?? null,
       notes: body.notes ?? null,
     },

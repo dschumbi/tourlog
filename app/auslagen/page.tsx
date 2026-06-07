@@ -12,6 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Pencil, Trash2, PlusCircle } from "lucide-react";
+import { type TourTypeConfig } from "@/lib/tour-types";
 
 interface Expense {
   id: number;
@@ -19,17 +20,27 @@ interface Expense {
   description: string;
   grossAmount: number;
   vatRate: number;
+  tourId: number | null;
   receiptUrl: string | null;
   notes: string | null;
 }
 
+interface TourOption {
+  id: number;
+  date: string;
+  tourType: string;
+}
+
+type FormData = Omit<Expense, "id"> & { id?: number };
+
 const today = () => new Date().toISOString().split("T")[0];
 
-const emptyForm = (): Omit<Expense, "id"> => ({
+const emptyForm = (): FormData => ({
   date: today(),
   description: "",
   grossAmount: 0,
   vatRate: 19,
+  tourId: null,
   receiptUrl: null,
   notes: null,
 });
@@ -38,17 +49,33 @@ const fmt = (n: number) => n.toFixed(2).replace(".", ",") + " €";
 
 export default function AuslagenPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [tours, setTours] = useState<TourOption[]>([]);
+  const [tourTypes, setTourTypes] = useState<TourTypeConfig[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialog, setDialog] = useState<{ mode: "new" | "edit"; data: Omit<Expense, "id"> & { id?: number } } | null>(null);
+  const [dialog, setDialog] = useState<{ mode: "new" | "edit"; data: FormData } | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function load() {
-    const res = await fetch("/api/auslagen");
-    setExpenses(await res.json());
+    const [expRes, tourRes, typeRes] = await Promise.all([
+      fetch("/api/auslagen"),
+      fetch("/api/tours"),
+      fetch("/api/tour-types"),
+    ]);
+    setExpenses(await expRes.json());
+    setTours(await tourRes.json());
+    setTourTypes(await typeRes.json());
     setLoading(false);
   }
 
   useEffect(() => { load(); }, []);
+
+  const tourLabel = (t: TourOption) => {
+    const label = tourTypes.find((tt) => tt.id === t.tourType)?.label ?? t.tourType;
+    const d = new Date(t.date).toLocaleDateString("de-DE", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+    });
+    return `${d} – ${label}`;
+  };
 
   function openNew() {
     setDialog({ mode: "new", data: emptyForm() });
@@ -90,7 +117,7 @@ export default function AuslagenPage() {
     }
   }
 
-  function update(patch: Partial<Omit<Expense, "id"> & { id?: number }>) {
+  function update(patch: Partial<FormData>) {
     if (!dialog) return;
     setDialog({ ...dialog, data: { ...dialog.data, ...patch } });
   }
@@ -119,6 +146,7 @@ export default function AuslagenPage() {
             const dateStr = new Date(e.date).toLocaleDateString("de-DE", {
               day: "2-digit", month: "2-digit", year: "numeric",
             });
+            const linkedTour = e.tourId ? tours.find((t) => t.id === e.tourId) : null;
             return (
               <Card key={e.id}>
                 <CardContent className="pt-3 pb-3">
@@ -133,6 +161,11 @@ export default function AuslagenPage() {
                         <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
                           Abrechnung {fmt(billedGross)} (netto {fmt(netVal)} + 19%)
                         </span>
+                        {linkedTour && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                            {tourLabel(linkedTour)}
+                          </span>
+                        )}
                       </div>
                       {e.notes && (
                         <p className="text-xs text-gray-400 mt-1 truncate">{e.notes}</p>
@@ -204,10 +237,26 @@ export default function AuslagenPage() {
               </div>
               {dialog.data.grossAmount > 0 && (
                 <div className="rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-600 space-y-0.5">
-                  <div>Netto: <strong>{fmt(net(dialog.data))}</strong></div>
-                  <div>Abrechnung brutto (19%): <strong>{fmt(net(dialog.data) * 1.19)}</strong></div>
+                  <div>Netto: <strong>{fmt(net(dialog.data as Expense))}</strong></div>
+                  <div>Abrechnung brutto (19%): <strong>{fmt(net(dialog.data as Expense) * 1.19)}</strong></div>
                 </div>
               )}
+              <div className="space-y-1">
+                <Label>Tour (optional)</Label>
+                <Select
+                  value={dialog.data.tourId != null ? String(dialog.data.tourId) : "none"}
+                  onValueChange={(v) => v && update({ tourId: v === "none" ? null : Number(v) })}>
+                  <SelectTrigger><SelectValue placeholder="— keine Tour —" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— keine Tour —</SelectItem>
+                    {tours.map((t) => (
+                      <SelectItem key={t.id} value={String(t.id)}>
+                        {tourLabel(t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1">
                 <Label>Notiz (optional)</Label>
                 <Input value={dialog.data.notes ?? ""}

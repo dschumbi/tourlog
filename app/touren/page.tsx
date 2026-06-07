@@ -32,6 +32,14 @@ interface Tour {
   notes: string | null;
 }
 
+interface SimpleExpense {
+  id: number;
+  description: string;
+  grossAmount: number;
+  vatRate: number;
+  tourId: number | null;
+}
+
 const KIND_LABELS: Record<string, string> = {
   public: "Öffentlich",
   private: "Privat",
@@ -46,20 +54,25 @@ const KIND_COLORS: Record<string, string> = {
   cancelled_private: "bg-orange-100 text-orange-700",
 };
 
+const fmtE = (n: number) => n.toFixed(2).replace(".", ",") + " €";
+
 export default function TourenPage() {
   const [tours, setTours] = useState<Tour[]>([]);
   const [tourTypes, setTourTypes] = useState<TourTypeConfig[]>([]);
+  const [expenses, setExpenses] = useState<SimpleExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [editTour, setEditTour] = useState<Tour | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function load() {
-    const [toursRes, typesRes] = await Promise.all([
+    const [toursRes, typesRes, expRes] = await Promise.all([
       fetch("/api/tours"),
       fetch("/api/tour-types"),
+      fetch("/api/auslagen"),
     ]);
     setTours(await toursRes.json());
     setTourTypes(await typesRes.json());
+    setExpenses(await expRes.json());
     setLoading(false);
   }
 
@@ -122,6 +135,7 @@ export default function TourenPage() {
           const dateStr = new Date(tour.date).toLocaleDateString("de-DE", {
             day: "2-digit", month: "2-digit", year: "numeric",
           });
+          const linkedExpenses = expenses.filter((e) => e.tourId === tour.id);
           return (
             <Card key={tour.id}>
               <CardContent className="pt-3 pb-3">
@@ -167,6 +181,15 @@ export default function TourenPage() {
                     </div>
                     {tour.notes && (
                       <p className="text-xs text-gray-400 mt-1 truncate">{tour.notes}</p>
+                    )}
+                    {linkedExpenses.length > 0 && (
+                      <div className="mt-1.5 space-y-0.5">
+                        {linkedExpenses.map((ex) => (
+                          <p key={ex.id} className="text-xs text-gray-500">
+                            💳 {ex.description} · {fmtE(ex.grossAmount)} brutto ({ex.vatRate}%)
+                          </p>
+                        ))}
+                      </div>
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">

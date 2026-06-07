@@ -31,8 +31,7 @@ export default function StatistikPage() {
       .then((r) => r.json())
       .then((d: StatData) => {
         setData(d);
-        const firstWithData = d.tourTypes.find((t) => d.stats[t.id]?.length > 0);
-        setSelectedType(firstWithData?.id ?? d.tourTypes[0]?.id ?? "");
+        setSelectedType("__gesamt__");
         setLoading(false);
       });
   }, []);
@@ -51,11 +50,28 @@ export default function StatistikPage() {
     );
   }
 
-  const chartData: CountryStat[] = (data.stats[selectedType] ?? [])
-    .slice()
-    .sort((a, b) => b.totalGuests - a.totalGuests);
+  // Gesamtstatistik: alle Tour-Typen aggregieren
+  const gesamtMap: Record<string, { totalGuests: number; totalTip: number }> = {};
+  for (const rows of Object.values(data.stats)) {
+    for (const row of rows) {
+      if (!gesamtMap[row.country]) gesamtMap[row.country] = { totalGuests: 0, totalTip: 0 };
+      gesamtMap[row.country].totalGuests += row.totalGuests;
+      gesamtMap[row.country].totalTip += row.totalTip;
+    }
+  }
+  const gesamtData: CountryStat[] = Object.entries(gesamtMap).map(([country, { totalGuests, totalTip }]) => ({
+    country,
+    totalGuests,
+    totalTip: Math.round(totalTip * 100) / 100,
+    avgTipPerGuest: totalGuests > 0 ? Math.round((totalTip / totalGuests) * 100) / 100 : 0,
+  }));
 
-  const tipData = chartData.slice().sort((a, b) => b.avgTipPerGuest - a.avgTipPerGuest);
+  const rawChartData = selectedType === "__gesamt__"
+    ? gesamtData
+    : (data.stats[selectedType] ?? []);
+
+  const chartData: CountryStat[] = rawChartData.slice().sort((a, b) => b.totalGuests - a.totalGuests);
+  const tipData = rawChartData.slice().sort((a, b) => b.avgTipPerGuest - a.avgTipPerGuest);
 
   const barH = Math.max(chartData.length * 44 + 40, 120);
 
@@ -63,7 +79,7 @@ export default function StatistikPage() {
     <div className="space-y-4">
       {/* Tour-Typ Auswahl */}
       <div className="flex flex-wrap gap-2">
-        {tourTypesWithData.map((t) => (
+        {[{ id: "__gesamt__", label: "Gesamt" }, ...tourTypesWithData].map((t) => (
           <button key={t.id} type="button"
             onClick={() => setSelectedType(t.id)}
             className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${

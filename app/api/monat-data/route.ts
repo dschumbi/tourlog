@@ -13,13 +13,17 @@ export async function GET(req: NextRequest) {
   const monthStart = new Date(year, month - 1, 1);
   const monthEnd = new Date(year, month, 1);
 
-  const [tours, unbilledReviews, settings, dbTourTypes] = await Promise.all([
+  const [tours, unbilledReviews, expenses, settings, dbTourTypes] = await Promise.all([
     prisma.tour.findMany({
       where: { date: { gte: monthStart, lt: monthEnd } },
       orderBy: { date: "asc" },
     }),
     prisma.tour.findMany({
       where: { date: { lt: monthStart }, fiveStarReviews: { gt: 0 }, reviewBilled: false },
+      orderBy: { date: "asc" },
+    }),
+    prisma.expense.findMany({
+      where: { date: { gte: monthStart, lt: monthEnd } },
       orderBy: { date: "asc" },
     }),
     prisma.settings.findUnique({ where: { id: "singleton" } }),
@@ -86,8 +90,20 @@ export async function GET(req: NextRequest) {
   const mvvVat = mvvNet * 0.19;
   const mvvBillingGross = mvvNet + mvvVat;
 
+  const auslagenItems = expenses.map((e) => ({
+    id: e.id,
+    date: e.date.toLocaleDateString("de-DE"),
+    description: e.description,
+    grossAmount: e.grossAmount,
+    vatRate: e.vatRate,
+    net: e.grossAmount / (1 + e.vatRate / 100),
+  }));
+  const auslagenNet = auslagenItems.reduce((s, e) => s + e.net, 0);
+  const auslagenVat = auslagenNet * 0.19;
+  const auslagenBillingGross = auslagenNet + auslagenVat;
+
   const cashTotal = toursWithFees.reduce((s, t) => s + t.cashCount, 0);
-  const amountDue = honorarGross + reviewGross + mvvBillingGross - cashTotal;
+  const amountDue = honorarGross + reviewGross + mvvBillingGross + auslagenBillingGross - cashTotal;
 
   return NextResponse.json({
     tours: toursWithFees,
@@ -95,6 +111,7 @@ export async function GET(req: NextRequest) {
     honorar: { net: honorarNet, vat: honorarVat, gross: honorarGross },
     reviews: { items: reviewItems, total: reviewTotal, vat: reviewVat, gross: reviewGross },
     mvv: { purchaseGross: mvvPurchaseGross, net: mvvNet, vat: mvvVat, billingGross: mvvBillingGross },
+    auslagen: { items: auslagenItems, net: auslagenNet, vat: auslagenVat, billingGross: auslagenBillingGross },
     cashTotal,
     amountDue,
   });

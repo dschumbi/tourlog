@@ -35,6 +35,18 @@ model TourType {
   sortOrder Int     @default(0)
 }
 
+model Expense {
+  id          Int      @id @default(autoincrement())
+  date        DateTime
+  description String
+  grossAmount Float
+  vatRate     Float    // 7 oder 19
+  receiptUrl  String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model Settings {
   id             String @id @default("singleton")
   // Eigene Daten (fest, in Code)

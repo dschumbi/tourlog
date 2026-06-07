@@ -26,12 +26,22 @@ interface ReviewItem {
   fromPrevMonth: boolean;
 }
 
+interface AuslagenItem {
+  id: number;
+  date: string;
+  description: string;
+  grossAmount: number;
+  vatRate: number;
+  net: number;
+}
+
 interface MonatData {
   tours: TourRow[];
   reviewItems: ReviewItem[];
   honorar: { net: number; vat: number; gross: number };
   reviews: { items: ReviewItem[]; total: number; vat: number; gross: number };
   mvv: { purchaseGross: number; net: number; vat: number; billingGross: number };
+  auslagen: { items: AuslagenItem[]; net: number; vat: number; billingGross: number };
   cashTotal: number;
   amountDue: number;
 }
@@ -164,6 +174,33 @@ export default function MonatPage() {
             </Card>
           )}
 
+          {/* Sonstige Auslagen */}
+          {data.auslagen?.items?.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Sonstige Auslagen</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {data.auslagen.items.map((e) => (
+                  <div key={e.id} className="flex justify-between items-start px-4 py-2 border-b last:border-0 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{e.description}</p>
+                      <p className="text-xs text-gray-400">{e.date} · brutto {fmt(e.grossAmount)} ({e.vatRate}%)</p>
+                    </div>
+                    <div className="shrink-0 ml-2 text-right text-xs">
+                      <p>{fmt(e.grossAmount)} brutto</p>
+                      <p className="text-gray-400">{fmt(e.net)} netto</p>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex justify-between px-4 py-2 text-sm font-semibold border-t">
+                  <span>Summe Auslagen (netto)</span>
+                  <span>{fmt(data.auslagen.net)}</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Bargeld */}
           {data.cashTotal > 0 && (
             <Card>
@@ -239,6 +276,24 @@ export default function MonatPage() {
                   <div className="flex justify-between font-medium">
                     <span>Auslagen MVV (brutto)</span>
                     <span>{fmt(data.mvv.billingGross)}</span>
+                  </div>
+                </>
+              )}
+
+              {(data.auslagen?.billingGross ?? 0) > 0 && (
+                <>
+                  <Separator className="my-1" />
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Sonstige Auslagen (netto)</span>
+                    <span>{fmt(data.auslagen.net)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-400 text-xs">
+                    <span>zzgl. MwSt. 19%</span>
+                    <span>{fmt(data.auslagen.vat)}</span>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span>Sonstige Auslagen (brutto)</span>
+                    <span>{fmt(data.auslagen.billingGross)}</span>
                   </div>
                 </>
               )}

@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
 
     const tours: any[] = d.tours ?? [];
     const reviewItems: any[] = d.reviews?.items ?? [];
+    const auslagenItems: any[] = d.auslagen?.items ?? [];
 
     const tourRows = tours.map((t: any) => `
       <tr>
@@ -60,6 +61,16 @@ export async function POST(req: NextRequest) {
           </tr>
         `;
       }).join("");
+
+    const sonstigeAuslagenRows = auslagenItems.map((e: any) => `
+      <tr>
+        <td>${e.date}</td>
+        <td>${e.description}</td>
+        <td style="text-align:center">${e.vatRate}%</td>
+        <td style="text-align:right">${fmt(e.grossAmount)}</td>
+        <td style="text-align:right">${fmt(e.net)}</td>
+      </tr>
+    `).join("");
 
     const bargeldRows = tours
       .filter((t: any) => (t.cashCount ?? 0) > 0)
@@ -185,6 +196,27 @@ ${auslagenRows ? `
 </table>
 ` : ""}
 
+${sonstigeAuslagenRows ? `
+<h2>Sonstige Auslagen</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Datum</th><th>Beschreibung</th>
+      <th style="text-align:center">MwSt. Einkauf</th>
+      <th style="text-align:right">Einkauf (brutto)</th>
+      <th style="text-align:right">Netto</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${sonstigeAuslagenRows}
+    <tr class="sum-row">
+      <td colspan="4">Summe Auslagen</td>
+      <td style="text-align:right">${fmt(d.auslagen?.net ?? 0)}</td>
+    </tr>
+  </tbody>
+</table>
+` : ""}
+
 ${bargeldRows ? `
 <h2>Bargeldeinnahmen</h2>
 <table>
@@ -220,6 +252,12 @@ ${bargeldRows ? `
     <tr><td>Auslagen MVV (netto)</td><td>${fmt(d.mvv?.net ?? 0)}</td></tr>
     <tr><td>zzgl. MwSt. 19%</td><td>${fmt(d.mvv?.vat19 ?? 0)}</td></tr>
     <tr class="subtotal"><td>Auslagen MVV (brutto)</td><td>${fmt(d.mvv?.billingGross ?? 0)}</td></tr>
+    ` : ""}
+    ${(d.auslagen?.billingGross ?? 0) > 0 ? `
+    <tr class="spacer"><td></td><td></td></tr>
+    <tr><td>Sonstige Auslagen (netto)</td><td>${fmt(d.auslagen?.net ?? 0)}</td></tr>
+    <tr><td>zzgl. MwSt. 19%</td><td>${fmt(d.auslagen?.vat19 ?? 0)}</td></tr>
+    <tr class="subtotal"><td>Sonstige Auslagen (brutto)</td><td>${fmt(d.auslagen?.billingGross ?? 0)}</td></tr>
     ` : ""}
     ${(d.cashTotal ?? 0) > 0 ? `
     <tr class="spacer"><td></td><td></td></tr>

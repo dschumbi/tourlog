@@ -54,9 +54,10 @@ export async function POST(req: NextRequest) {
     const honorarNet = d.honorar?.net ?? 0;
     const reviewTotal = d.reviews?.total ?? 0;
     const mvvNet = d.mvv?.net ?? 0;
+    const auslagenNet = d.auslagen?.net ?? 0;
     const cashTotal = d.cashTotal ?? 0;
 
-    const lineTotal = honorarNet + reviewTotal + mvvNet;
+    const lineTotal = honorarNet + reviewTotal + mvvNet + auslagenNet;
     const taxBasis = lineTotal;
     const taxAmount = Math.round(taxBasis * 0.19 * 100) / 100;
     const grandTotal = Math.round((taxBasis + taxAmount) * 100) / 100;
@@ -145,6 +146,7 @@ export async function POST(req: NextRequest) {
       lineItem(lineIndex++, `Touren-Honorar ${d.monthName ?? ""}`, honorarNet),
       ...(reviewTotal > 0 ? [lineItem(lineIndex++, `5★ Prämien ${d.monthName ?? ""}`, reviewTotal)] : []),
       ...(mvvNet > 0 ? [lineItem(lineIndex++, `Auslagen MVV ${d.monthName ?? ""}`, mvvNet)] : []),
+      ...(auslagenNet > 0 ? [lineItem(lineIndex++, `Sonstige Auslagen ${d.monthName ?? ""}`, auslagenNet)] : []),
     ].join("");
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>

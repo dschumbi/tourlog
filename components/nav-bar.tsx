@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { PlusCircle, List, BarChart2, Settings, LogOut } from "lucide-react";
+import { PlusCircle, List, BarChart2, Settings, LogOut, Receipt } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const links = [
   { href: "/", label: "Erfassen", icon: PlusCircle },
   { href: "/touren", label: "Touren", icon: List },
+  { href: "/auslagen", label: "Auslagen", icon: Receipt },
   { href: "/monat", label: "Monat", icon: BarChart2 },
   { href: "/einstellungen", label: "Settings", icon: Settings },
 ];

@@ -504,8 +504,8 @@ export default function TourenPage() {
                       })}
                     </div>
                   )}
-                  <div className="grid grid-cols-[1fr_auto_auto_auto] gap-1 items-end">
-                    <div>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-1 items-end">
+                    <div className="min-w-0">
                       <Select value={guestForm.countryId}
                         onValueChange={(v) => v && setGuestForm({ ...guestForm, countryId: v })}>
                         <SelectTrigger className="w-full h-8">

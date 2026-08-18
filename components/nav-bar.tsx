@@ -31,38 +31,66 @@ export default function NavBar() {
   }
 
   return (
-    <nav className="bg-white border-b sticky top-0 z-10">
-      <div className="container mx-auto max-w-lg px-4">
-        <div className="flex items-center justify-between h-14">
-          <span className="font-semibold text-sm text-gray-800">TourLog</span>
-          <div className="flex gap-1 items-center">
-            {links.map(({ href, label, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className={`flex flex-col items-center px-3 py-1 rounded-md text-xs gap-0.5 transition-colors ${
-                  pathname === href
-                    ? "text-blue-600 bg-blue-50"
-                    : "text-gray-500 hover:text-gray-800"
-                }`}
-              >
-                <Icon size={18} />
-                {label}
-              </Link>
-            ))}
+    <>
+      <nav className="bg-white border-b sticky top-0 z-40">
+        <div className="container mx-auto max-w-lg md:max-w-2xl lg:max-w-4xl px-4">
+          <div className="flex items-center justify-between h-14">
+            <span className="font-semibold text-sm text-gray-800">TourLog</span>
+            <div className="hidden md:flex gap-1 items-center">
+              {links.map(({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex flex-col items-center px-3 py-1 rounded-md text-xs gap-0.5 transition-colors ${
+                    pathname === href
+                      ? "text-blue-600 bg-blue-50"
+                      : "text-gray-500 hover:text-gray-800"
+                  }`}
+                >
+                  <Icon size={18} />
+                  {label}
+                </Link>
+              ))}
+              {hasPassword && (
+                <button
+                  onClick={handleLogout}
+                  className="flex flex-col items-center px-3 py-1 rounded-md text-xs gap-0.5 text-gray-500 hover:text-gray-800 transition-colors"
+                  title="Abmelden"
+                >
+                  <LogOut size={18} />
+                  Logout
+                </button>
+              )}
+            </div>
             {hasPassword && (
               <button
                 onClick={handleLogout}
-                className="flex flex-col items-center px-3 py-1 rounded-md text-xs gap-0.5 text-gray-500 hover:text-gray-800 transition-colors"
+                className="md:hidden flex items-center justify-center h-8 w-8 rounded-md text-gray-500 hover:text-gray-800 transition-colors"
                 title="Abmelden"
               >
                 <LogOut size={18} />
-                Logout
               </button>
             )}
           </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t pb-safe">
+        <div className="flex items-stretch justify-between">
+          {links.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 h-14 text-[11px] transition-colors ${
+                pathname === href ? "text-blue-600" : "text-gray-500"
+              }`}
+            >
+              <Icon size={20} />
+              {label}
+            </Link>
+          ))}
+        </div>
+      </nav>
+    </>
   );
 }

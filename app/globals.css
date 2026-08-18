@@ -128,3 +128,12 @@
     @apply font-sans;
   }
 }
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pb-safe-offset {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+}

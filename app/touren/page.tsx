@@ -13,7 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { calculateFees, type TourKind, type TourTypeConfig } from "@/lib/tour-types";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import { Pencil, Trash2, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface TourGuestItem {
   id: number;
@@ -68,6 +68,9 @@ const KIND_COLORS: Record<string, string> = {
 const fmtE = (n: number) => n.toFixed(2).replace(".", ",") + " €";
 
 export default function TourenPage() {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
   const [tours, setTours] = useState<Tour[]>([]);
   const [tourTypes, setTourTypes] = useState<TourTypeConfig[]>([]);
   const [expenses, setExpenses] = useState<SimpleExpense[]>([]);
@@ -81,8 +84,9 @@ export default function TourenPage() {
   const [saving, setSaving] = useState(false);
 
   async function load() {
+    setLoading(true);
     const [toursRes, typesRes, expRes, ctrRes] = await Promise.all([
-      fetch("/api/tours"),
+      fetch(`/api/tours?year=${year}&month=${month}`),
       fetch("/api/tour-types"),
       fetch("/api/auslagen"),
       fetch("/api/countries"),
@@ -95,7 +99,20 @@ export default function TourenPage() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [year, month]);
+
+  function prevMonth() {
+    if (month === 1) { setYear((y) => y - 1); setMonth(12); }
+    else setMonth((m) => m - 1);
+  }
+  function nextMonth() {
+    if (month === 12) { setYear((y) => y + 1); setMonth(1); }
+    else setMonth((m) => m + 1);
+  }
+
+  const monthName = new Date(year, month - 1).toLocaleDateString("de-DE", {
+    month: "long", year: "numeric",
+  });
 
   async function handleDelete(id: number) {
     if (!confirm("Tour löschen?")) return;
@@ -187,12 +204,38 @@ export default function TourenPage() {
       }, tourTypes)
     : null;
 
-  if (loading) return <p className="text-center text-gray-400 mt-10">Lädt…</p>;
-  if (tours.length === 0)
-    return <p className="text-center text-gray-400 mt-10">Noch keine Touren erfasst.</p>;
+  const monthTotal = tours.reduce((sum, tour) => {
+    const fees = calculateFees({
+      tourType: tour.tourType,
+      tourKind: tour.tourKind as TourKind,
+      paxCount: tour.paxCount,
+      hotelPickup: tour.hotelPickup,
+      fiveStarReviews: tour.fiveStarReviews,
+      cancellationWithin48h: tour.cancellationWithin48h,
+    }, tourTypes);
+    return sum + (tour.feeOverride ?? fees.total);
+  }, 0);
 
   return (
     <>
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="icon" onClick={prevMonth}><ChevronLeft /></Button>
+        <h2 className="font-semibold text-base">{monthName}</h2>
+        <Button variant="ghost" size="icon" onClick={nextMonth}><ChevronRight /></Button>
+      </div>
+
+      {!loading && tours.length > 0 && (
+        <div className="flex justify-between items-center text-sm text-gray-500 px-1 mb-3">
+          <span>{tours.length} {tours.length === 1 ? "Tour" : "Touren"}</span>
+          <span className="font-medium text-gray-700">{fmtE(monthTotal)}</span>
+        </div>
+      )}
+
+      {loading ? (
+        <p className="text-center text-gray-400 mt-10">Lädt…</p>
+      ) : tours.length === 0 ? (
+        <p className="text-center text-gray-400 mt-10">Keine Touren in diesem Monat.</p>
+      ) : (
       <div className="space-y-3">
         {tours.map((tour) => {
           const fees = calculateFees({
@@ -287,6 +330,7 @@ export default function TourenPage() {
           );
         })}
       </div>
+      )}
 
       <Dialog open={!!editTour} onOpenChange={(o) => !o && setEditTour(null)}>
         <DialogContent className="max-w-sm">

@@ -76,6 +76,8 @@ export default function TourenPage() {
   const [editTour, setEditTour] = useState<Tour | null>(null);
   const [editGuests, setEditGuests] = useState<{ countryId: number; guestCount: number; tip: number }[]>([]);
   const [guestForm, setGuestForm] = useState<{ countryId: string; guestCount: string; tip: string }>({ countryId: "", guestCount: "", tip: "" });
+  const [editReceiptUrls, setEditReceiptUrls] = useState<string[]>([]);
+  const [editNewFiles, setEditNewFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
 
   async function load() {
@@ -105,6 +107,8 @@ export default function TourenPage() {
     setEditTour({ ...tour, date: tour.date.split("T")[0] });
     setEditGuests(tour.tourGuests.map((g) => ({ countryId: g.countryId, guestCount: g.guestCount, tip: g.tip })));
     setGuestForm({ countryId: "", guestCount: "", tip: "" });
+    setEditReceiptUrls(tour.mvvReceiptUrls ?? []);
+    setEditNewFiles([]);
   }
 
   function addGuest() {
@@ -122,6 +126,22 @@ export default function TourenPage() {
     if (!editTour) return;
     setSaving(true);
     try {
+      let mvvReceiptUrls = editReceiptUrls;
+      if (editNewFiles.length > 0) {
+        const tourLabel = tourTypes.find((t) => t.id === editTour.tourType)?.label ?? editTour.tourType;
+        const folderPath = `receipts/${editTour.date.split("T")[0]} ${tourLabel} · ${editTour.id}`;
+        const uploads = await Promise.all(
+          editNewFiles.map(async (file) => {
+            const fd = new FormData();
+            fd.append("file", file);
+            fd.append("folderPath", folderPath);
+            const up = await fetch("/api/upload", { method: "POST", body: fd });
+            if (!up.ok) throw new Error("upload");
+            return (await up.json()).url as string;
+          })
+        );
+        mvvReceiptUrls = [...editReceiptUrls, ...uploads];
+      }
       const res = await fetch(`/api/tours/${editTour.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -129,15 +149,17 @@ export default function TourenPage() {
           ...editTour,
           date: editTour.date.split("T")[0],
           paxCount: editTour.paxCount ?? null,
+          mvvReceiptUrls,
           tourGuests: editGuests,
         }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error("save");
       toast.success("Gespeichert");
       setEditTour(null);
       load();
-    } catch {
-      toast.error("Fehler beim Speichern");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      toast.error(msg === "upload" ? "Beleg-Upload fehlgeschlagen" : "Fehler beim Speichern");
     } finally {
       setSaving(false);
     }
@@ -149,6 +171,20 @@ export default function TourenPage() {
   const editIsFlatFee = editTour
     ? tourTypes.find((t) => t.id === editTour.tourType)?.flatFee != null
     : false;
+  const editIsCancelled = editTour
+    ? editTour.tourKind === "cancelled_public" || editTour.tourKind === "cancelled_private"
+    : false;
+  const editIsPrivate = editTour?.tourKind === "private";
+  const editFees = editTour
+    ? calculateFees({
+        tourType: editTour.tourType,
+        tourKind: editTour.tourKind as TourKind,
+        paxCount: editTour.paxCount,
+        hotelPickup: editTour.hotelPickup,
+        fiveStarReviews: editTour.fiveStarReviews,
+        cancellationWithin48h: editTour.cancellationWithin48h,
+      }, tourTypes)
+    : null;
 
   if (loading) return <p className="text-center text-gray-400 mt-10">Lädt…</p>;
   if (tours.length === 0)
@@ -294,23 +330,39 @@ export default function TourenPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label>5★-Bewertungen</Label>
-                <div className="flex gap-2">
-                  {[0, 1, 2, 3].map((n) => (
-                    <button key={n} type="button"
-                      onClick={() => setEditTour({ ...editTour, fiveStarReviews: n })}
-                      className={`flex-1 py-2 rounded-md border text-sm font-medium transition-colors ${
-                        editTour.fiveStarReviews === n
-                          ? "bg-yellow-400 border-yellow-400 text-white"
-                          : "bg-white border-gray-200 text-gray-600"
-                      }`}>
-                      {n === 0 ? "—" : `${n} ★`}
-                    </button>
-                  ))}
+              {editIsPrivate && (
+                <div className="flex items-center justify-between">
+                  <Label>Hotel-Abholung (+10 €)</Label>
+                  <Switch checked={editTour.hotelPickup}
+                    onCheckedChange={(v) => setEditTour({ ...editTour, hotelPickup: v })} />
                 </div>
-              </div>
-              {!editIsFlatFee && (
+              )}
+              {editTour.tourKind === "cancelled_private" && (
+                <div className="flex items-center justify-between">
+                  <Label>Storniert innerhalb 48h (+20 €)</Label>
+                  <Switch checked={editTour.cancellationWithin48h}
+                    onCheckedChange={(v) => setEditTour({ ...editTour, cancellationWithin48h: v })} />
+                </div>
+              )}
+              {!editIsCancelled && (
+                <div className="space-y-1">
+                  <Label>5★-Bewertungen</Label>
+                  <div className="flex gap-2">
+                    {[0, 1, 2, 3].map((n) => (
+                      <button key={n} type="button"
+                        onClick={() => setEditTour({ ...editTour, fiveStarReviews: n })}
+                        className={`flex-1 py-2 rounded-md border text-sm font-medium transition-colors ${
+                          editTour.fiveStarReviews === n
+                            ? "bg-yellow-400 border-yellow-400 text-white"
+                            : "bg-white border-gray-200 text-gray-600"
+                        }`}>
+                        {n === 0 ? "—" : `${n} ★`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {!editIsFlatFee && !editIsCancelled && (
                 <div className="space-y-1">
                   <Label>Teilnehmer</Label>
                   <Input type="number" min={1}
@@ -321,35 +373,98 @@ export default function TourenPage() {
                     })} />
                 </div>
               )}
-              <div className="space-y-1">
-                <Label>Bargeld (Anzahl Gäste)</Label>
-                <Input type="number" min={0}
-                  value={editTour.cashCount ?? ""}
-                  onChange={(e) => setEditTour({
-                    ...editTour,
-                    cashCount: e.target.value ? Number(e.target.value) : null,
-                  })} />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
+              {!editIsCancelled && (
                 <div className="space-y-1">
-                  <Label>MVV Einzelkarten</Label>
+                  <Label>Bargeld (Anzahl Gäste)</Label>
                   <Input type="number" min={0}
-                    value={editTour.mvvSingleTickets || ""}
+                    value={editTour.cashCount ?? ""}
                     onChange={(e) => setEditTour({
                       ...editTour,
-                      mvvSingleTickets: Number(e.target.value) || 0,
+                      cashCount: e.target.value ? Number(e.target.value) : null,
                     })} />
                 </div>
+              )}
+              {!editIsCancelled && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label>MVV Einzelkarten</Label>
+                    <Input type="number" min={0}
+                      value={editTour.mvvSingleTickets || ""}
+                      onChange={(e) => setEditTour({
+                        ...editTour,
+                        mvvSingleTickets: Number(e.target.value) || 0,
+                      })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>MVV Gruppenkarten</Label>
+                    <Input type="number" min={0}
+                      value={editTour.mvvGroupTickets || ""}
+                      onChange={(e) => setEditTour({
+                        ...editTour,
+                        mvvGroupTickets: Number(e.target.value) || 0,
+                      })} />
+                  </div>
+                </div>
+              )}
+              {!editIsCancelled && (editTour.mvvSingleTickets > 0 || editTour.mvvGroupTickets > 0 || editReceiptUrls.length > 0 || editNewFiles.length > 0) && (
                 <div className="space-y-1">
-                  <Label>MVV Gruppenkarten</Label>
-                  <Input type="number" min={0}
-                    value={editTour.mvvGroupTickets || ""}
-                    onChange={(e) => setEditTour({
-                      ...editTour,
-                      mvvGroupTickets: Number(e.target.value) || 0,
-                    })} />
+                  <Label>Belege</Label>
+                  {editReceiptUrls.length > 0 && (
+                    <div className="space-y-1">
+                      {editReceiptUrls.map((url, i) => (
+                        <div key={url} className="flex items-center justify-between text-sm bg-gray-50 rounded-md px-2 py-1">
+                          <a href={url} target="_blank" rel="noopener noreferrer"
+                            className="flex-1 truncate underline text-gray-600">
+                            Beleg {editReceiptUrls.length > 1 ? i + 1 : ""}
+                          </a>
+                          <Button size="icon" variant="ghost" className="h-6 w-6 text-red-400 shrink-0"
+                            type="button"
+                            onClick={() => setEditReceiptUrls(editReceiptUrls.filter((u) => u !== url))}>
+                            <Trash2 size={12} />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Input type="file" accept="image/*,application/pdf" multiple
+                    onChange={(e) => setEditNewFiles(Array.from(e.target.files ?? []))} />
+                  {editNewFiles.length > 0 && (
+                    <p className="text-xs text-gray-500">{editNewFiles.length} neue Datei(en) ausgewählt</p>
+                  )}
                 </div>
-              </div>
+              )}
+              {editFees && (
+                <div className="rounded-md bg-blue-50 border border-blue-200 p-3 space-y-1 text-sm">
+                  {editFees.baseFee > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Honorar</span>
+                      <span>{editFees.baseFee.toFixed(2)} €</span>
+                    </div>
+                  )}
+                  {editFees.hotelPickupFee > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Hotel-Abholung</span>
+                      <span>+{editFees.hotelPickupFee.toFixed(2)} €</span>
+                    </div>
+                  )}
+                  {editFees.reviewBonus > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">5★-Prämie</span>
+                      <span>+{editFees.reviewBonus.toFixed(2)} €</span>
+                    </div>
+                  )}
+                  {editFees.cancellationFee > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Ausfallgeld</span>
+                      <span>{editFees.cancellationFee.toFixed(2)} €</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-semibold border-t border-blue-200 pt-1 mt-1">
+                    <span>Gesamt</span>
+                    <span>{editFees.total.toFixed(2)} €</span>
+                  </div>
+                </div>
+              )}
               <div className="space-y-1">
                 <Label>Honorar überschreiben (optional)</Label>
                 <Input type="number" min={0} step={0.01}

@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
+  const tourGuests: { countryId: number; guestCount: number; tip: number }[] = body.tourGuests ?? [];
   const tour = await prisma.tour.create({
     data: {
       date: new Date(body.date),
@@ -41,6 +42,13 @@ export async function POST(req: NextRequest) {
       mvvReceiptUrls: body.mvvReceiptUrls ?? [],
       feeOverride: body.feeOverride ?? null,
       notes: body.notes ?? null,
+      tourGuests: {
+        create: tourGuests.map((g) => ({
+          countryId: g.countryId,
+          guestCount: g.guestCount,
+          tip: g.tip,
+        })),
+      },
     },
   });
   return NextResponse.json(tour, { status: 201 });

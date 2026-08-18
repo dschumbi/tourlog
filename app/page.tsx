@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { calculateFees, type TourKind, type TourTypeConfig } from "@/lib/tour-types";
+import { Trash2, Plus } from "lucide-react";
 
 const today = () => new Date().toISOString().split("T")[0];
 
@@ -24,8 +25,11 @@ const KIND_LABELS: Record<string, string> = {
   cancelled_private: "Ausgefallen (privat)",
 };
 
+interface Country { id: number; name: string; }
+
 export default function ErfassenPage() {
   const [tourTypes, setTourTypes] = useState<TourTypeConfig[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
   const [date, setDate] = useState(today());
   const [tourType, setTourType] = useState("");
   const [tourKind, setTourKind] = useState<TourKind>("public");
@@ -39,11 +43,25 @@ export default function ErfassenPage() {
   const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   const [feeOverride, setFeeOverride] = useState("");
   const [notes, setNotes] = useState("");
+  const [guests, setGuests] = useState<{ countryId: number; guestCount: number; tip: number }[]>([]);
+  const [guestForm, setGuestForm] = useState<{ countryId: string; guestCount: string; tip: string }>({ countryId: "", guestCount: "", tip: "" });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetch("/api/tour-types").then((r) => r.json()).then(setTourTypes);
+    fetch("/api/countries").then((r) => r.json()).then(setCountries);
   }, []);
+
+  function addGuest() {
+    if (!guestForm.countryId || !guestForm.guestCount) return;
+    const countryId = Number(guestForm.countryId);
+    if (guests.some((g) => g.countryId === countryId)) {
+      toast.error("Dieses Land ist bereits eingetragen");
+      return;
+    }
+    setGuests([...guests, { countryId, guestCount: Number(guestForm.guestCount), tip: Number(guestForm.tip) || 0 }]);
+    setGuestForm({ countryId: "", guestCount: "", tip: "" });
+  }
 
   const isCancelled = tourKind === "cancelled_public" || tourKind === "cancelled_private";
   const isPrivate = tourKind === "private";
@@ -97,6 +115,7 @@ export default function ErfassenPage() {
           mvvReceiptUrls,
           feeOverride: feeOverride ? Number(feeOverride) : null,
           notes: notes || null,
+          tourGuests: guests,
         }),
       });
       if (!res.ok) throw new Error("save");
@@ -106,6 +125,7 @@ export default function ErfassenPage() {
       setCancellationWithin48h(false); setCashCount("");
       setMvvSingle(""); setMvvGroup(""); setReceiptFiles([]);
       setFeeOverride(""); setNotes(""); setDate(today());
+      setGuests([]); setGuestForm({ countryId: "", guestCount: "", tip: "" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
       toast.error(msg === "upload" ? "Beleg-Upload fehlgeschlagen" : "Fehler beim Speichern");
@@ -242,6 +262,59 @@ export default function ErfassenPage() {
             <Input id="notes" value={notes} onChange={(e) => setNotes(e.target.value)}
               placeholder="z.B. Besondere Gruppe…" />
           </div>
+
+          {countries.length > 0 && (
+            <div className="space-y-2 pt-1">
+              <Label>Herkunft & Trinkgeld</Label>
+              {guests.length > 0 && (
+                <div className="space-y-1">
+                  {guests.map((g) => {
+                    const name = countries.find((c) => c.id === g.countryId)?.name ?? "?";
+                    return (
+                      <div key={g.countryId} className="flex items-center justify-between text-sm bg-gray-50 rounded-md px-2 py-1">
+                        <span className="flex-1 truncate">{name}</span>
+                        <span className="text-gray-500 text-xs mx-2">{g.guestCount} Gäste · {g.tip.toFixed(2)} €</span>
+                        <Button size="icon" variant="ghost" className="h-6 w-6 text-red-400 shrink-0"
+                          type="button"
+                          onClick={() => setGuests(guests.filter((x) => x.countryId !== g.countryId))}>
+                          <Trash2 size={12} />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-1 items-end">
+                <div>
+                  <Select value={guestForm.countryId}
+                    onValueChange={(v) => v && setGuestForm({ ...guestForm, countryId: v })}>
+                    <SelectTrigger className="w-full h-8">
+                      <SelectValue>
+                        {guestForm.countryId
+                          ? countries.find((c) => c.id === Number(guestForm.countryId))?.name ?? "Land"
+                          : "Land"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries.map((c) => (
+                        <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Input className="h-8 w-16" type="number" min={1} placeholder="Pax"
+                  value={guestForm.guestCount}
+                  onChange={(e) => setGuestForm({ ...guestForm, guestCount: e.target.value })} />
+                <Input className="h-8 w-20" type="number" min={0} step={0.01} placeholder="Tip €"
+                  value={guestForm.tip}
+                  onChange={(e) => setGuestForm({ ...guestForm, tip: e.target.value })} />
+                <Button type="button" size="icon" className="h-8 w-8" onClick={addGuest}
+                  disabled={!guestForm.countryId || !guestForm.guestCount}>
+                  <Plus size={14} />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

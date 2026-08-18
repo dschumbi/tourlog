@@ -6,7 +6,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json();
   const country = await prisma.country.update({
     where: { id: Number(id) },
-    data: { name: body.name.trim(), sortOrder: body.sortOrder ?? 0 },
+    data: { name: body.name.trim() },
   });
   return NextResponse.json(country);
 }

@@ -54,7 +54,6 @@ model Expense {
 model Country {
   id         Int         @id @default(autoincrement())
   name       String      @unique
-  sortOrder  Int         @default(0)
   tourGuests TourGuest[]
 }
 

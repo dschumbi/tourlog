@@ -49,7 +49,8 @@ export default function ErfassenPage() {
 
   useEffect(() => {
     fetch("/api/tour-types").then((r) => r.json()).then(setTourTypes);
-    fetch("/api/countries").then((r) => r.json()).then(setCountries);
+    fetch("/api/countries").then((r) => r.json())
+      .then((data: Country[]) => setCountries([...data].sort((a, b) => a.name.localeCompare(b.name, "de"))));
   }, []);
 
   function addGuest() {

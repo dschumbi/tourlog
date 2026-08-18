@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  const countries = await prisma.country.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
+  const countries = await prisma.country.findMany({ orderBy: { name: "asc" } });
   return NextResponse.json(countries);
 }
 
@@ -11,7 +11,6 @@ export async function POST(req: NextRequest) {
   const country = await prisma.country.create({
     data: {
       name: body.name.trim(),
-      sortOrder: body.sortOrder ?? 0,
     },
   });
   return NextResponse.json(country, { status: 201 });

@@ -90,7 +90,8 @@ export default function TourenPage() {
     setTours(await toursRes.json());
     setTourTypes(await typesRes.json());
     setExpenses(await expRes.json());
-    setCountries(await ctrRes.json());
+    const countriesData: Country[] = await ctrRes.json();
+    setCountries([...countriesData].sort((a, b) => a.name.localeCompare(b.name, "de")));
     setLoading(false);
   }
 

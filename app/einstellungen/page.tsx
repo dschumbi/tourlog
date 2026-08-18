@@ -30,8 +30,8 @@ interface TourTypeEdit {
   flatFee: string; tiers: { minPax: string; fee: string }[];
 }
 
-interface Country { id: number; name: string; sortOrder: number; }
-interface CountryEdit { id?: number; name: string; sortOrder: string; }
+interface Country { id: number; name: string; }
+interface CountryEdit { id?: number; name: string; }
 
 const emptyTourTypeEdit = (): TourTypeEdit => ({
   label: "", pricingType: "tiered", flatFee: "", tiers: [{ minPax: "0", fee: "" }],
@@ -79,7 +79,8 @@ export default function EinstellungenPage() {
 
   async function loadCountries() {
     const res = await fetch("/api/countries");
-    setCountries(await res.json());
+    const data: Country[] = await res.json();
+    setCountries([...data].sort((a, b) => a.name.localeCompare(b.name, "de")));
   }
 
   useEffect(() => {
@@ -92,7 +93,7 @@ export default function EinstellungenPage() {
       setSettings({ ...defaults, ...data });
       setHasPassword(pw.hasPassword);
       setTourTypes(types);
-      setCountries(ctrs);
+      setCountries([...ctrs].sort((a: Country, b: Country) => a.name.localeCompare(b.name, "de")));
       setLoading(false);
     });
   }, []);
@@ -169,7 +170,7 @@ export default function EinstellungenPage() {
     if (!countryDialog.name.trim()) { toast.error("Name erforderlich"); return; }
     setSavingCountry(true);
     try {
-      const payload = { name: countryDialog.name.trim(), sortOrder: Number(countryDialog.sortOrder) || 0 };
+      const payload = { name: countryDialog.name.trim() };
       const res = countryDialog.id
         ? await fetch(`/api/countries/${countryDialog.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         : await fetch("/api/countries", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -370,7 +371,7 @@ export default function EinstellungenPage() {
         <div className="space-y-4">
           <div className="flex justify-end">
             <Button size="sm" variant="outline"
-              onClick={() => setCountryDialog({ name: "", sortOrder: "0" })}>
+              onClick={() => setCountryDialog({ name: "" })}>
               <Plus size={14} className="mr-1" /> Neues Land
             </Button>
           </div>
@@ -381,7 +382,7 @@ export default function EinstellungenPage() {
                   <p className="text-sm font-medium">{c.name}</p>
                   <div className="flex gap-1 shrink-0">
                     <Button size="icon" variant="ghost" className="h-7 w-7"
-                      onClick={() => setCountryDialog({ id: c.id, name: c.name, sortOrder: String(c.sortOrder) })}>
+                      onClick={() => setCountryDialog({ id: c.id, name: c.name })}>
                       <Pencil size={13} />
                     </Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400"
@@ -522,12 +523,6 @@ export default function EinstellungenPage() {
                 <Input value={countryDialog.name}
                   onChange={(e) => setCountryDialog({ ...countryDialog, name: e.target.value })}
                   placeholder="z.B. Deutschland" />
-              </div>
-              <div className="space-y-1">
-                <Label>Reihenfolge</Label>
-                <Input type="number" min={0} value={countryDialog.sortOrder}
-                  onChange={(e) => setCountryDialog({ ...countryDialog, sortOrder: e.target.value })} />
-                <p className="text-xs text-gray-400">Kleinere Zahl = weiter oben in der Liste</p>
               </div>
             </div>
           )}

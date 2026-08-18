@@ -221,14 +221,19 @@ export default function EinstellungenPage() {
     if (!confirm(`Korrektur zu Rechnung ${invoice.invoiceNumber} ausstellen?`)) return;
     setRequestingCorrectionId(invoice.id);
     try {
-      const res = await fetch(settings.n8nWebhookUrl, {
+      const res = await fetch("/api/trigger-correction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ year: invoice.year, month: invoice.month, correctsInvoiceId: invoice.id }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: null }));
+        throw new Error(error ?? undefined);
+      }
       toast.success("Korrektur wird in n8n erstellt — Liste in Kürze neu laden");
-    } catch { toast.error("Fehler beim Auslösen der Korrektur"); }
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : "Fehler beim Auslösen der Korrektur");
+    }
     finally { setRequestingCorrectionId(null); }
   }
 

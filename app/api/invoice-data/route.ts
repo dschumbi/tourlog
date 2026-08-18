@@ -10,10 +10,25 @@ export async function GET(req: NextRequest) {
 
   const yearParam = req.nextUrl.searchParams.get("year");
   const monthParam = req.nextUrl.searchParams.get("month");
+  const correctsInvoiceIdParam = req.nextUrl.searchParams.get("correctsInvoiceId");
 
   const now = new Date();
   const year = yearParam ? Number(yearParam) : now.getFullYear();
   const month = monthParam ? Number(monthParam) : now.getMonth() + 1;
+
+  let correctsInvoice = null;
+  if (correctsInvoiceIdParam) {
+    correctsInvoice = await prisma.invoice.findUnique({
+      where: { id: Number(correctsInvoiceIdParam) },
+      include: { corrections: true },
+    });
+    if (!correctsInvoice) {
+      return NextResponse.json({ error: "Original invoice not found" }, { status: 404 });
+    }
+    if (correctsInvoice.year !== year || correctsInvoice.month !== month) {
+      return NextResponse.json({ error: "year/month must match the original invoice" }, { status: 400 });
+    }
+  }
 
   const monthStart = new Date(year, month - 1, 1);
   const monthEnd = new Date(year, month, 1);
@@ -136,11 +151,21 @@ export async function GET(req: NextRequest) {
   const amountDueFormatted = amountDue.toFixed(2).replace(".", ",") + " €";
   const prefix = settings?.invoicePrefix ?? "RE";
   const mPad = String(month).padStart(2, "0");
-  const invoiceNumber = `${prefix}-${year}-${mPad}-001`;
+  const invoiceNumber = correctsInvoice
+    ? `${correctsInvoice.invoiceNumber}-K${correctsInvoice.corrections.length + 1}`
+    : `${prefix}-${year}-${mPad}`;
 
   return NextResponse.json({
     month, year, monthName,
     invoiceDate, dueDate, invoiceNumber, amountDueFormatted,
+    ...(correctsInvoice ? {
+      correction: {
+        correctsInvoiceId: correctsInvoice.id,
+        correctsInvoiceNumber: correctsInvoice.invoiceNumber,
+        correctsInvoiceDate: correctsInvoice.invoiceDate.toLocaleDateString("de-DE"),
+        typeCode: 384,
+      },
+    } : {}),
     owner: {
       name: settings?.ownerName ?? "",
       address: settings?.ownerAddress ?? "",

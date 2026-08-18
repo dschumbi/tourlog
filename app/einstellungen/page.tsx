@@ -33,6 +33,18 @@ interface TourTypeEdit {
 interface Country { id: number; name: string; }
 interface CountryEdit { id?: number; name: string; }
 
+interface InvoiceRow {
+  id: number;
+  invoiceNumber: string;
+  year: number;
+  month: number;
+  typeCode: number;
+  status: string;
+  invoiceDate: string;
+  amountDue: number;
+  correctsInvoice: { id: number; invoiceNumber: string } | null;
+}
+
 const emptyTourTypeEdit = (): TourTypeEdit => ({
   label: "", pricingType: "tiered", flatFee: "", tiers: [{ minPax: "0", fee: "" }],
 });
@@ -44,12 +56,13 @@ const defaults: Settings = {
   invoicePrefix: "RE", paymentDays: 14, mvvSinglePrice: 0, mvvGroupPrice: 0, n8nWebhookUrl: "",
 };
 
-type Tab = "allgemein" | "tourtypen" | "laender" | "passwort";
+type Tab = "allgemein" | "tourtypen" | "laender" | "rechnungen" | "passwort";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "allgemein", label: "Allgemein" },
   { id: "tourtypen", label: "Tourtypen" },
   { id: "laender", label: "Länder" },
+  { id: "rechnungen", label: "Rechnungen" },
   { id: "passwort", label: "Passwort" },
 ];
 
@@ -72,6 +85,14 @@ export default function EinstellungenPage() {
   const [countryDialog, setCountryDialog] = useState<CountryEdit | null>(null);
   const [savingCountry, setSavingCountry] = useState(false);
 
+  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+  const [requestingCorrectionId, setRequestingCorrectionId] = useState<number | null>(null);
+
+  async function loadInvoices() {
+    const res = await fetch("/api/invoices");
+    setInvoices(await res.json());
+  }
+
   async function loadTourTypes() {
     const res = await fetch("/api/tour-types");
     setTourTypes(await res.json());
@@ -89,11 +110,13 @@ export default function EinstellungenPage() {
       fetch("/api/auth/password").then((r) => r.json()),
       fetch("/api/tour-types").then((r) => r.json()),
       fetch("/api/countries").then((r) => r.json()),
-    ]).then(([data, pw, types, ctrs]) => {
+      fetch("/api/invoices").then((r) => r.json()),
+    ]).then(([data, pw, types, ctrs, invs]) => {
       setSettings({ ...defaults, ...data });
       setHasPassword(pw.hasPassword);
       setTourTypes(types);
       setCountries([...ctrs].sort((a: Country, b: Country) => a.name.localeCompare(b.name, "de")));
+      setInvoices(invs);
       setLoading(false);
     });
   }, []);
@@ -190,6 +213,25 @@ export default function EinstellungenPage() {
     loadCountries();
   }
 
+  async function handleRequestCorrection(invoice: InvoiceRow) {
+    if (!settings.n8nWebhookUrl) {
+      toast.error("Erst n8n Webhook-URL in Allgemein hinterlegen");
+      return;
+    }
+    if (!confirm(`Korrektur zu Rechnung ${invoice.invoiceNumber} ausstellen?`)) return;
+    setRequestingCorrectionId(invoice.id);
+    try {
+      const res = await fetch(settings.n8nWebhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year: invoice.year, month: invoice.month, correctsInvoiceId: invoice.id }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Korrektur wird in n8n erstellt — Liste in Kürze neu laden");
+    } catch { toast.error("Fehler beim Auslösen der Korrektur"); }
+    finally { setRequestingCorrectionId(null); }
+  }
+
   function tiersSummary(t: TourTypeRow): string {
     if (t.flatFee != null) return `${t.flatFee} € pauschal`;
     if (t.tiers.length === 0) return "–";
@@ -278,7 +320,7 @@ export default function EinstellungenPage() {
                 <Label htmlFor="invoicePrefix">Rechnungs-Präfix</Label>
                 <Input id="invoicePrefix" value={settings.invoicePrefix}
                   onChange={(e) => set("invoicePrefix", e.target.value)} placeholder="z.B. RE" />
-                <p className="text-xs text-gray-400">Format: RE-2026-04-001</p>
+                <p className="text-xs text-gray-400">Format: RE-2026-04</p>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="paymentDays">Zahlungsziel (Tage)</Label>
@@ -397,6 +439,59 @@ export default function EinstellungenPage() {
               )}
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Rechnungen */}
+      {tab === "rechnungen" && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button size="sm" variant="outline" onClick={loadInvoices}>Aktualisieren</Button>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              {invoices.map((inv) => (
+                <div key={inv.id} className="flex items-start justify-between gap-2 px-4 py-3 border-b last:border-0">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{inv.invoiceNumber}</p>
+                    <p className="text-xs text-gray-400">
+                      {String(inv.month).padStart(2, "0")}/{inv.year} · {new Date(inv.invoiceDate).toLocaleDateString("de-DE")} · {inv.amountDue.toFixed(2).replace(".", ",")} €
+                    </p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        inv.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                      }`}>
+                        {inv.status === "active" ? "Aktiv" : "Ersetzt"}
+                      </span>
+                      {inv.typeCode === 384 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">Korrektur</span>
+                      )}
+                      {inv.correctsInvoice && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                          zu {inv.correctsInvoice.invoiceNumber}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {inv.status === "active" && (
+                    <Button size="sm" variant="outline" className="shrink-0"
+                      disabled={requestingCorrectionId === inv.id}
+                      onClick={() => handleRequestCorrection(inv)}>
+                      {requestingCorrectionId === inv.id ? "…" : "Korrektur ausstellen"}
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {invoices.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-4">Noch keine Rechnungen ausgestellt</p>
+              )}
+            </CardContent>
+          </Card>
+          {!settings.n8nWebhookUrl && (
+            <p className="text-xs text-gray-400">
+              Für &quot;Korrektur ausstellen&quot; erst eine n8n Webhook-URL unter &quot;Allgemein&quot; hinterlegen.
+            </p>
+          )}
         </div>
       )}
 

@@ -98,3 +98,23 @@ model Settings {
   // n8n Webhook
   n8nWebhookUrl  String @default("")
 }
+
+model Invoice {
+  id                Int       @id @default(autoincrement())
+  invoiceNumber     String    @unique
+  year              Int
+  month             Int
+  typeCode          Int       @default(380) // 380 normal, 384 korrigiert
+  status            String    @default("active") // "active" | "superseded"
+  invoiceDate       DateTime
+  dueDate           DateTime
+  amountDue         Float
+  correctsInvoiceId Int?
+  correctsInvoice   Invoice?  @relation("InvoiceCorrection", fields: [correctsInvoiceId], references: [id])
+  corrections       Invoice[] @relation("InvoiceCorrection")
+  reviewTourIds     Int[]     @default([])
+  dataSnapshot      Json
+  issuedAt          DateTime  @default(now())
+
+  @@index([year, month])
+}

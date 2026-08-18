@@ -15,6 +15,11 @@ export async function POST(req: NextRequest) {
   const month = req.nextUrl.searchParams.get("month")
     ? Number(req.nextUrl.searchParams.get("month"))
     : new Date().getMonth() + 1;
+  const invoiceNumberParam = req.nextUrl.searchParams.get("invoiceNumber");
+  const invoiceDateParam = req.nextUrl.searchParams.get("invoiceDate");
+  const dueDateParam = req.nextUrl.searchParams.get("dueDate");
+  const correctsInvoiceNumber = req.nextUrl.searchParams.get("correctsInvoiceNumber");
+  const correctsInvoiceDate = req.nextUrl.searchParams.get("correctsInvoiceDate");
 
   const monthStart = new Date(year, month - 1, 1);
   const monthEnd = new Date(year, month, 1);
@@ -71,10 +76,11 @@ export async function POST(req: NextRequest) {
   const paymentDays = settings?.paymentDays ?? 14;
   const dueD = new Date();
   dueD.setDate(dueD.getDate() + paymentDays);
-  const dueDate = dueD.toLocaleDateString("de-DE");
+  const dueDate = dueDateParam ?? dueD.toLocaleDateString("de-DE");
 
   const prefix = settings?.invoicePrefix ?? "RE";
-  const invoiceNumber = `${prefix}-${year}-${mPad}-001`;
+  const invoiceNumber = invoiceNumberParam ?? `${prefix}-${year}-${mPad}`;
+  const invoiceDate = invoiceDateParam ?? new Date().toLocaleDateString("de-DE");
   const fmt = (n: number) => n.toFixed(2).replace(".", ",") + " €";
 
   // ---- Deckblatt (DIN 5008 Sichtfensterposition) ----
@@ -127,6 +133,13 @@ export async function POST(req: NextRequest) {
     size: 14, font: bold, color: rgb(0, 0, 0),
   });
   y -= mm(5);
+  if (correctsInvoiceNumber) {
+    page.drawText(`Korrektur zu Rechnung ${correctsInvoiceNumber} vom ${correctsInvoiceDate ?? ""}`, {
+      x: mm(25), y,
+      size: 10, font: regular, color: rgb(0.3, 0.3, 0.3),
+    });
+    y -= mm(6);
+  }
 
   // Trennlinie
   page.drawLine({
@@ -139,6 +152,7 @@ export async function POST(req: NextRequest) {
   // Überweisungsbox (Rahmen)
   const boxTop = y + mm(4);
   const boxRows: [string, string][] = [
+    ["Rechnungsdatum:",  invoiceDate],
     ["Betrag:",          fmt(amountDue)],
     ["Zahlungsziel:",    dueDate],
     ["",                 ""],

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const prefix = d.rechnung?.prefix ?? "RE";
     const m = String(d.month ?? today.getMonth() + 1).padStart(2, "0");
     const yr = d.year ?? today.getFullYear();
-    const invoiceNumber = d.invoiceNumber ?? `${prefix}-${yr}-${m}-001`;
+    const invoiceNumber = d.invoiceNumber ?? `${prefix}-${yr}-${m}`;
 
     const owner = d.owner ?? {};
     const bank = d.bank ?? {};
@@ -136,6 +136,7 @@ export async function POST(req: NextRequest) {
 </div>
 
 <p>Zeitraum: <strong>${d.monthName ?? ""}</strong></p>
+${d.correction ? `<p>Korrigiert Rechnung Nr. ${d.correction.correctsInvoiceNumber} vom ${d.correction.correctsInvoiceDate}</p>` : ""}
 
 <h2>Touren</h2>
 <table>

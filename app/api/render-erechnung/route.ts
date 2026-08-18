@@ -30,11 +30,24 @@ export async function POST(req: NextRequest) {
     const bankBic = bank.bic || dbSettings?.bankBic || "";
 
     const today = new Date();
-    const todayXml = today.toISOString().slice(0, 10).replace(/-/g, "");
+    const parseDeDate = (s: string) => {
+      const [day, month, year] = s.split(".").map(Number);
+      return new Date(year, month - 1, day);
+    };
+    // Nutzt lokale Datumskomponenten statt toISOString(), da parseDeDate() ebenfalls
+    // lokal konstruiert — sonst kann die UTC-Konvertierung auf den Vortag zurückfallen.
+    const toXmlDate = (date: Date) =>
+      `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
+
+    const invoiceDateObj = d.invoiceDate ? parseDeDate(d.invoiceDate) : today;
+    const todayXml = toXmlDate(invoiceDateObj);
     const paymentDays = d.rechnung?.paymentDays ?? 14;
-    const dueD = new Date(today);
-    dueD.setDate(dueD.getDate() + paymentDays);
-    const dueDateXml = dueD.toISOString().slice(0, 10).replace(/-/g, "");
+    const dueD = d.dueDate ? parseDeDate(d.dueDate) : (() => {
+      const fallback = new Date(invoiceDateObj);
+      fallback.setDate(fallback.getDate() + paymentDays);
+      return fallback;
+    })();
+    const dueDateXml = toXmlDate(dueD);
     const prefix = d.rechnung?.prefix ?? "RE";
     const m = String(d.month ?? today.getMonth() + 1).padStart(2, "0");
     const yr = d.year ?? today.getFullYear();
@@ -42,7 +55,9 @@ export async function POST(req: NextRequest) {
     const year = d.year ?? today.getFullYear();
     // Lieferdatum = letzter Tag des Abrechnungsmonats (Pflichtfeld EN 16931)
     const deliveryDateXml = new Date(year, month, 0).toISOString().slice(0, 10).replace(/-/g, "");
-    const invoiceNumber = d.invoiceNumber ?? `${prefix}-${yr}-${m}-001`;
+    const invoiceNumber = d.invoiceNumber ?? `${prefix}-${yr}-${m}`;
+    const isCorrection = !!d.correction;
+    const typeCode = d.correction?.typeCode ?? 380;
 
     function splitCity(cityStr: string) {
       const parts = (cityStr ?? "").trim().split(" ");
@@ -153,7 +168,8 @@ export async function POST(req: NextRequest) {
 <rsm:CrossIndustryInvoice
   xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
   xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
-  xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
+  xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100"
+  xmlns:qdt="urn:un:unece:uncefact:data:standard:QualifiedDataType:100">
 
   <rsm:ExchangedDocumentContext>
     <ram:BusinessProcessSpecifiedDocumentContextParameter>
@@ -166,7 +182,7 @@ export async function POST(req: NextRequest) {
 
   <rsm:ExchangedDocument>
     <ram:ID>${escXml(invoiceNumber)}</ram:ID>
-    <ram:TypeCode>380</ram:TypeCode>
+    <ram:TypeCode>${typeCode}</ram:TypeCode>
     <ram:IssueDateTime>
       <udt:DateTimeString format="102">${todayXml}</udt:DateTimeString>
     </ram:IssueDateTime>
@@ -253,6 +269,12 @@ ${lines}
         ${cashTotal > 0 ? `<ram:TotalPrepaidAmount>${fmt(cashTotal)}</ram:TotalPrepaidAmount>` : ""}
         <ram:DuePayableAmount>${fmt(duePayable)}</ram:DuePayableAmount>
       </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+      ${isCorrection ? `<ram:InvoiceReferencedDocument>
+        <ram:IssuerAssignedID>${escXml(d.correction.correctsInvoiceNumber)}</ram:IssuerAssignedID>
+        <ram:FormattedIssueDateTime>
+          <qdt:DateTimeString format="102">${toXmlDate(parseDeDate(d.correction.correctsInvoiceDate))}</qdt:DateTimeString>
+        </ram:FormattedIssueDateTime>
+      </ram:InvoiceReferencedDocument>` : ""}
     </ram:ApplicableHeaderTradeSettlement>
   </rsm:SupplyChainTradeTransaction>
 </rsm:CrossIndustryInvoice>`;

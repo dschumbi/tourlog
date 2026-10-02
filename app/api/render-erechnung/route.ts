@@ -66,13 +66,13 @@ export async function POST(req: NextRequest) {
     const ownerCity = splitCity(ownerCityRaw);
     const buyerCity = splitCity(veranstalter.city);
 
-    const honorarNet = d.honorar?.net ?? 0;
-    const reviewTotal = d.reviews?.total ?? 0;
+    // 5-Sterne-Prämien werden wie auf der PDF-Rechnung direkt mit den Touren verrechnet
+    const toursNet = Math.round(((d.honorar?.net ?? 0) + (d.reviews?.total ?? 0)) * 100) / 100;
     const mvvNet = d.mvv?.net ?? 0;
     const auslagenNet = d.auslagen?.net ?? 0;
     const cashTotal = d.cashTotal ?? 0;
 
-    const lineTotal = honorarNet + reviewTotal + mvvNet + auslagenNet;
+    const lineTotal = Math.round((toursNet + mvvNet + auslagenNet) * 100) / 100;
     const taxBasis = lineTotal;
     const taxAmount = Math.round(taxBasis * 0.19 * 100) / 100;
     const grandTotal = Math.round((taxBasis + taxAmount) * 100) / 100;
@@ -158,8 +158,7 @@ export async function POST(req: NextRequest) {
     }
 
     const lines = [
-      lineItem(lineIndex++, `Touren-Honorar ${d.monthName ?? ""}`, honorarNet),
-      ...(reviewTotal > 0 ? [lineItem(lineIndex++, `5★ Prämien ${d.monthName ?? ""}`, reviewTotal)] : []),
+      lineItem(lineIndex++, `Touren ${d.monthName ?? ""}`, toursNet),
       ...(mvvNet > 0 ? [lineItem(lineIndex++, `Auslagen MVV ${d.monthName ?? ""}`, mvvNet)] : []),
       ...(auslagenNet > 0 ? [lineItem(lineIndex++, `Sonstige Auslagen ${d.monthName ?? ""}`, auslagenNet)] : []),
     ].join("");

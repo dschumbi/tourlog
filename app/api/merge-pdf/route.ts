@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb, type RGB } from "pdf-lib";
 import { prisma } from "@/lib/prisma";
-import { computeInvoiceAmounts, defaultInvoiceDates, formatEuro as fmt, type InvoiceAmounts } from "@/lib/invoice";
+import { computeInvoiceAmounts, defaultInvoiceDates, formatEuro as fmt, round2, type InvoiceAmounts } from "@/lib/invoice";
 
 // Erzeugt die komplette Rechnungs-PDF: Deckblatt + Rechnungsseite(n) + MVV-Belege.
 // Alle Beträge kommen aus computeInvoiceAmounts() — Deckblatt und Rechnung können
@@ -276,24 +276,35 @@ function drawInvoice(doc: PDFDocument, fonts: Fonts, a: InvoiceAmounts, meta: In
   }
 
   const W = CONTENT_W;
-  if (a.tours.length > 0) {
+  // 5-Sterne-Prämien werden direkt in die Tourzeile eingerechnet. Prämien für Touren
+  // aus Vormonaten (Bewertung kam erst später) erscheinen als eigene Zeile mit Tourdatum.
+  const reviewById = new Map(a.reviewItems.map((r) => [r.id, r]));
+  const tourRows = [
+    ...a.tours.map((t) => ({
+      date: t.date,
+      label: t.tourLabel,
+      pax: t.paxCount != null ? String(t.paxCount) : "–",
+      stars: t.fiveStarReviews,
+      net: round2(t.honorarNet + (reviewById.get(t.id)?.reviewBonus ?? 0)),
+    })),
+    ...a.reviewItems.filter((r) => !a.tours.some((t) => t.id === r.id)).map((r) => ({
+      date: r.date,
+      label: `${r.tourLabel} (Prämie nachträglich)`,
+      pax: "–",
+      stars: r.fiveStarReviews,
+      net: r.reviewBonus,
+    })),
+  ];
+  const toursNet = round2(a.honorarNet + a.reviewTotal);
+  if (tourRows.length > 0) {
     table("Touren", [
       { header: "Datum", width: mm(25) },
-      { header: "Tour", width: W - mm(25) - mm(20) - mm(35) },
-      { header: "Pax", width: mm(20), align: "right" },
-      { header: "Honorar (netto)", width: mm(35), align: "right" },
-    ], a.tours.map((t) => [t.date, t.tourLabel, t.paxCount != null ? String(t.paxCount) : "–", fmt(t.honorarNet)]),
-    ["Summe Honorar (netto)", "", "", fmt(a.honorarNet)]);
-  }
-
-  if (a.reviewItems.length > 0) {
-    table("5-Sterne-Prämien", [
-      { header: "Datum", width: mm(25) },
-      { header: "Tour", width: W - mm(25) - mm(30) - mm(35) },
-      { header: "Bewertungen", width: mm(30), align: "right" },
-      { header: "Prämie (netto)", width: mm(35), align: "right" },
-    ], a.reviewItems.map((r) => [r.date, r.tourLabel, String(r.fiveStarReviews), fmt(r.reviewBonus)]),
-    ["Summe Prämien (netto)", "", "", fmt(a.reviewTotal)]);
+      { header: "Tour", width: W - mm(25) - mm(15) - mm(22) - mm(35) },
+      { header: "Pax", width: mm(15), align: "right" },
+      { header: "5 Sterne", width: mm(22), align: "right" },
+      { header: "Betrag (netto)", width: mm(35), align: "right" },
+    ], tourRows.map((r) => [r.date, r.label, r.pax, r.stars > 0 ? String(r.stars) : "–", fmt(r.net)]),
+    ["Summe Touren (netto)", "", "", "", fmt(toursNet)]);
   }
 
   const mvvTours = a.tours.filter((t) => t.mvvGross > 0);
@@ -337,8 +348,7 @@ function drawInvoice(doc: PDFDocument, fonts: Fonts, a: InvoiceAmounts, meta: In
   // ---- Summenblock ----
   type TotalRow = { label: string; value: string; bold?: boolean; color?: RGB; lineAbove?: number; size?: number };
   const totals: TotalRow[] = [
-    { label: "Honorar (netto)", value: fmt(a.honorarNet) },
-    ...(a.reviewTotal > 0 ? [{ label: "5-Sterne-Prämien (netto)", value: fmt(a.reviewTotal) }] : []),
+    { label: "Touren (netto)", value: fmt(toursNet) },
     ...(a.mvvNet > 0 ? [{ label: "Auslagen MVV (netto)", value: fmt(a.mvvNet) }] : []),
     ...(a.auslagenNet > 0 ? [{ label: "Sonstige Auslagen (netto)", value: fmt(a.auslagenNet) }] : []),
     { label: "Summe netto", value: fmt(a.netTotal), bold: true, lineAbove: 0.5 },

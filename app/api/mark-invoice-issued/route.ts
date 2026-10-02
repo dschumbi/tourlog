@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 // Akzeptiert deutsches Format (TT.MM.JJJJ, wie von invoice-data geliefert) oder ISO
 function parseDate(s: string): Date {
-  if (/^\d{2}\.\d{2}\.\d{4}$/.test(s)) {
+  if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(s)) {
     const [day, month, year] = s.split(".").map(Number);
     return new Date(year, month - 1, day);
   }

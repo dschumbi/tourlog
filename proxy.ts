@@ -22,5 +22,7 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon\\.ico|.*\\.svg).*)"],
+  // Ausnahmen nur für Dateien im Wurzelverzeichnis (public/) — Belege unter
+  // /api/files/<id>/<name>.svg|.png dürfen nicht am Login vorbei.
+  matcher: ["/((?!_next/static|_next/image|favicon\\.ico$|manifest\\.json$|icon-\\d+\\.png$|[^/]+\\.svg$).*)"],
 };

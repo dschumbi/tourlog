@@ -11,12 +11,14 @@ export const metadata: Metadata = {
   description: "Tourerfassung für Gästeführer",
   manifest: "/manifest.json",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "TourLog" },
+  icons: { apple: "/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#2563eb",
 };
 
 export default function RootLayout({

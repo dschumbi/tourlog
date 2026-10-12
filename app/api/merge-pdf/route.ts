@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb, type RGB } from "pdf-lib";
 import { prisma } from "@/lib/prisma";
+import { loadFile } from "@/lib/files";
 import { computeInvoiceAmounts, defaultInvoiceDates, formatEuro as fmt, round2, type InvoiceAmounts } from "@/lib/invoice";
 
 // Erzeugt die komplette Rechnungs-PDF: Deckblatt + Rechnungsseite(n) + MVV-Belege.
@@ -67,9 +68,9 @@ export async function POST(req: NextRequest) {
   const receiptUrls = a.tours.flatMap((t) => t.mvvReceiptUrls).filter(Boolean);
   for (const url of receiptUrls) {
     try {
-      const res = await fetch(url);
-      const bytes = await res.arrayBuffer();
-      const mime = res.headers.get("content-type") ?? "";
+      const file = await loadFile(url);
+      if (!file) continue;
+      const { bytes, contentType: mime } = file;
 
       if (mime.includes("pdf")) {
         const srcDoc = await PDFDocument.load(bytes);

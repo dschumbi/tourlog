@@ -1,5 +1,5 @@
-import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
+import { saveFile } from "@/lib/files";
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
@@ -8,14 +8,11 @@ export async function POST(req: NextRequest) {
   if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
 
   try {
-    const blob = await put(`${folderPath}/${file.name}`, file, {
-      access: "public",
-      addRandomSuffix: true,
-    });
-    return NextResponse.json({ url: blob.url });
+    const url = await saveFile(`${folderPath}/${file.name}`, file);
+    return NextResponse.json({ url });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("Blob upload error:", message);
+    console.error("Upload error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

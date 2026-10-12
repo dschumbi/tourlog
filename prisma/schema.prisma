@@ -118,3 +118,13 @@ model Invoice {
 
   @@index([year, month])
 }
+
+// Hochgeladene Belege (ersetzt Vercel Blob). Abruf nur mit Login über /api/files/[id]/[name].
+model StoredFile {
+  id          String   @id @default(cuid())
+  pathname    String
+  contentType String
+  size        Int
+  data        Bytes
+  createdAt   DateTime @default(now())
+}

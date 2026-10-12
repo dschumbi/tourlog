@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { loadFile } from "@/lib/files";
 
 export async function POST(req: NextRequest) {
   const key = req.nextUrl.searchParams.get("key");
@@ -97,12 +98,10 @@ export async function POST(req: NextRequest) {
     for (const tour of toursWithReceipts) {
       for (const url of tour.mvvReceiptUrls) {
         try {
-          const res = await fetch(url);
-          if (!res.ok) continue;
-          const contentType = res.headers.get("content-type") ?? "";
-          const mimeCode = contentType.split(";")[0].trim() || guessMime(url);
-          const buf = await res.arrayBuffer();
-          const base64 = Buffer.from(buf).toString("base64");
+          const file = await loadFile(url);
+          if (!file) continue;
+          const mimeCode = file.contentType.split(";")[0].trim() || guessMime(url);
+          const base64 = Buffer.from(file.bytes).toString("base64");
           const ext = mimeCode === "application/pdf" ? "pdf" : mimeCode.split("/")[1] ?? "jpg";
           attachments.push({
             id: `beleg-${attachIdx}`,

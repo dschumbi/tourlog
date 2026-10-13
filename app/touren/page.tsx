@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -83,7 +83,7 @@ export default function TourenPage() {
   const [editNewFiles, setEditNewFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     const [toursRes, typesRes, expRes, ctrRes] = await Promise.all([
       fetch(`/api/tours?year=${year}&month=${month}`),
@@ -97,9 +97,9 @@ export default function TourenPage() {
     const countriesData: Country[] = await ctrRes.json();
     setCountries([...countriesData].sort((a, b) => a.name.localeCompare(b.name, "de")));
     setLoading(false);
-  }
+  }, [year, month]);
 
-  useEffect(() => { load(); }, [year, month]);
+  useEffect(() => { load(); }, [load]);
 
   function prevMonth() {
     if (month === 1) { setYear((y) => y - 1); setMonth(12); }

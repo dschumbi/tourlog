@@ -2,17 +2,45 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { loadFile } from "@/lib/files";
 
+// Payload aus n8n (Antwort von /api/invoice-data, ggf. ergänzt) — alle Felder optional,
+// fehlende Werte werden aus den DB-Settings bzw. Defaults ergänzt.
+type Party = { name?: string; address?: string; city?: string; email?: string; taxId?: string };
+type ERechnungPayload = {
+  year?: number;
+  month?: number;
+  monthName?: string;
+  invoiceNumber?: string;
+  invoiceDate?: string; // d.m.yyyy
+  dueDate?: string; // d.m.yyyy
+  cashTotal?: number;
+  rechnung?: { paymentDays?: number; prefix?: string };
+  correction?: { typeCode?: number; correctsInvoiceNumber?: string; correctsInvoiceDate?: string } | null;
+  honorar?: { net?: number };
+  reviews?: { total?: number };
+  mvv?: { net?: number };
+  auslagen?: { net?: number };
+  owner?: Party;
+  bank?: { iban?: string; bic?: string };
+  veranstalter?: Party;
+};
+
 export async function POST(req: NextRequest) {
   const key = req.nextUrl.searchParams.get("key");
   if (!key || key !== process.env.INVOICE_API_KEY) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let d: any;
+  let d: ERechnungPayload;
   try {
     d = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  // Korrekturrechnung braucht Nummer und Datum der Originalrechnung (EN 16931)
+  const correction = d.correction;
+  if (correction && (!correction.correctsInvoiceNumber || !correction.correctsInvoiceDate)) {
+    return NextResponse.json({ error: "correction.correctsInvoiceNumber and correctsInvoiceDate are required" }, { status: 400 });
   }
 
   try {
@@ -55,12 +83,11 @@ export async function POST(req: NextRequest) {
     const month = d.month ?? today.getMonth() + 1;
     const year = d.year ?? today.getFullYear();
     // Lieferdatum = letzter Tag des Abrechnungsmonats (Pflichtfeld EN 16931)
-    const deliveryDateXml = new Date(year, month, 0).toISOString().slice(0, 10).replace(/-/g, "");
+    const deliveryDateXml = toXmlDate(new Date(year, month, 0));
     const invoiceNumber = d.invoiceNumber ?? `${prefix}-${yr}-${m}`;
-    const isCorrection = !!d.correction;
     const typeCode = d.correction?.typeCode ?? 380;
 
-    function splitCity(cityStr: string) {
+    function splitCity(cityStr?: string) {
       const parts = (cityStr ?? "").trim().split(" ");
       return { postcode: parts[0] ?? "", city: (parts.slice(1).join(" ") || parts[0]) ?? "" };
     }
@@ -102,7 +129,6 @@ export async function POST(req: NextRequest) {
           if (!file) continue;
           const mimeCode = file.contentType.split(";")[0].trim() || guessMime(url);
           const base64 = Buffer.from(file.bytes).toString("base64");
-          const ext = mimeCode === "application/pdf" ? "pdf" : mimeCode.split("/")[1] ?? "jpg";
           attachments.push({
             id: `beleg-${attachIdx}`,
             name: `MVV Beleg ${attachIdx}`,
@@ -267,10 +293,10 @@ ${lines}
         ${cashTotal > 0 ? `<ram:TotalPrepaidAmount>${fmt(cashTotal)}</ram:TotalPrepaidAmount>` : ""}
         <ram:DuePayableAmount>${fmt(duePayable)}</ram:DuePayableAmount>
       </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
-      ${isCorrection ? `<ram:InvoiceReferencedDocument>
-        <ram:IssuerAssignedID>${escXml(d.correction.correctsInvoiceNumber)}</ram:IssuerAssignedID>
+      ${correction?.correctsInvoiceDate ? `<ram:InvoiceReferencedDocument>
+        <ram:IssuerAssignedID>${escXml(correction.correctsInvoiceNumber)}</ram:IssuerAssignedID>
         <ram:FormattedIssueDateTime>
-          <qdt:DateTimeString format="102">${toXmlDate(parseDeDate(d.correction.correctsInvoiceDate))}</qdt:DateTimeString>
+          <qdt:DateTimeString format="102">${toXmlDate(parseDeDate(correction.correctsInvoiceDate))}</qdt:DateTimeString>
         </ram:FormattedIssueDateTime>
       </ram:InvoiceReferencedDocument>` : ""}
     </ram:ApplicableHeaderTradeSettlement>
@@ -289,7 +315,7 @@ ${lines}
   }
 }
 
-function escXml(s: string): string {
+function escXml(s?: string | null): string {
   return (s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
